@@ -1,4 +1,4 @@
-# Privacy Policy — 司法院裁判書助手
+# Privacy Policy — 司法院裁判書閱讀助手
 
 **最後更新：2026-04-13**
 

@@ -1,4 +1,4 @@
-# 司法院裁判書助手 — Chrome Extension
+# 司法院裁判書閱讀助手 — Chrome Extension
 
 在瀏覽司法院法學資料檢索系統與裁判書系統時，自動在頁面左側注入「判決架構」導覽卡片，讓長篇判決的結構一目瞭然；並在複製文字時自動移除換行、附上裁判字號。
 
@@ -73,7 +73,7 @@ git clone https://github.com/han0302-cyber/judicial-outline-extension.git
 2. 右上角開啟 **「開發人員模式 / Developer mode」** 切換開關
 3. 左上角點 **「載入未封裝項目 / Load unpacked」**
 4. 選檔案視窗出現後，選取你剛解壓或 clone 的資料夾（裡面要看得到 `manifest.json`、`content.js`、`icons/` 等檔案），點「選擇 / Select」
-5. Extensions 列表上會出現「司法院裁判書助手」卡片，確認開關是**打開**的
+5. Extensions 列表上會出現「司法院裁判書閱讀助手」卡片，確認開關是**打開**的
 
 #### 步驟 3 — 試用
 
