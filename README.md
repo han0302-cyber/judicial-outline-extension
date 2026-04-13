@@ -134,3 +134,7 @@ git clone https://github.com/han0302-cyber/judicial-outline-extension.git
 ## 授權
 
 MIT License — 詳見 [LICENSE](./LICENSE)。
+
+## 聯絡
+
+有問題歡迎來信 **tinghan.lin@stellexlaw.com**，但不保證修好（笑）。
