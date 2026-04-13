@@ -137,4 +137,4 @@ MIT License — 詳見 [LICENSE](./LICENSE)。
 
 ## 聯絡
 
-有問題歡迎來信 **tinghan.lin@stellexlaw.com**，但不保證修好（笑）。
+使用上有任何問題或建議，歡迎來信 **tinghan.lin@stellexlaw.com**。
