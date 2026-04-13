@@ -40,7 +40,10 @@
 
 #### 步驟 1 — 下載原始碼
 
-**選項 1：下載 ZIP（不需 git）**
+> 以下 **1-A** 和 **1-B** **擇一執行即可**（不是兩種都做）。不熟 git 的使用者請選 1-A。
+
+<details>
+<summary><b>1-A　下載 ZIP（不需 git，推薦給一般使用者）</b></summary>
 
 1. 開啟 https://github.com/han0302-cyber/judicial-outline-extension
 2. 點右上方綠色 **`Code`** 按鈕
@@ -48,12 +51,21 @@
 4. 下載後解壓縮到你容易找到的位置，例如 `~/Downloads/judicial-outline-extension-main/`
 5. **重要**：解壓後的資料夾**不要移動、不要刪除、不要改名**，Chrome 會持續從這個路徑讀取 extension
 
-**選項 2：git clone（需先裝 git）**
+做完請直接跳到 **步驟 2**。
+
+</details>
+
+<details>
+<summary><b>1-B　git clone（需先裝 git，適合開發者）</b></summary>
 
 ```bash
 cd ~/Downloads
 git clone https://github.com/han0302-cyber/judicial-outline-extension.git
 ```
+
+做完請直接跳到 **步驟 2**。
+
+</details>
 
 #### 步驟 2 — 在 Chrome 中載入 extension
 
