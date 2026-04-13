@@ -32,11 +32,67 @@
 
 ## 安裝
 
-1. 下載或 clone 本 repo
-2. Chrome 開啟 `chrome://extensions`
-3. 開啟「開發人員模式」
-4. 點「載入未封裝項目」，選這個資料夾
-5. 瀏覽任一篇裁判書即可看到左側「判決架構」耳標
+### 方式 A：從 Chrome Web Store 安裝（推薦，待上架後補連結）
+
+審查通過後本 README 會補上 Chrome Web Store 連結，點一下即可安裝。
+
+### 方式 B：從 GitHub 原始碼本機安裝（開發人員模式）
+
+#### 步驟 1 — 下載原始碼
+
+**選項 1：下載 ZIP（不需 git）**
+
+1. 開啟 https://github.com/han0302-cyber/judicial-outline-extension
+2. 點右上方綠色 **`Code`** 按鈕
+3. 下拉選單選 **`Download ZIP`**
+4. 下載後解壓縮到你容易找到的位置，例如 `~/Downloads/judicial-outline-extension-main/`
+5. **重要**：解壓後的資料夾**不要移動、不要刪除、不要改名**，Chrome 會持續從這個路徑讀取 extension
+
+**選項 2：git clone（需先裝 git）**
+
+```bash
+cd ~/Downloads
+git clone https://github.com/han0302-cyber/judicial-outline-extension.git
+```
+
+#### 步驟 2 — 在 Chrome 中載入 extension
+
+1. 開啟 Chrome，網址列輸入 `chrome://extensions` 按 Enter
+2. 右上角開啟 **「開發人員模式 / Developer mode」** 切換開關
+3. 左上角點 **「載入未封裝項目 / Load unpacked」**
+4. 選檔案視窗出現後，選取你剛解壓或 clone 的資料夾（裡面要看得到 `manifest.json`、`content.js`、`icons/` 等檔案），點「選擇 / Select」
+5. Extensions 列表上會出現「司法院裁判書助手」卡片，確認開關是**打開**的
+
+#### 步驟 3 — 試用
+
+1. 前往任一裁判書頁面，例如：
+   - https://legal.judicial.gov.tw/FINT/default.aspx（法學資料檢索系統）
+   - https://judgment.judicial.gov.tw/FJUD/default.aspx（裁判書系統）
+2. 搜尋一筆判決、點進詳細內容頁
+3. 頁面左側應該會出現一條「判決架構」直條耳標，滑鼠移上去會展開目錄
+4. 選取任一段判決文字複製，貼到任何地方，尾端會自動附上「（<裁判字號>意旨參照）」
+
+### 更新
+
+- **方式 A（Web Store）**：Chrome 會自動更新
+- **方式 B-1（ZIP）**：重新下載新版 ZIP、刪除舊資料夾、解壓到原位、在 `chrome://extensions` 點擊該 extension 的「🔄 重新載入」按鈕
+- **方式 B-2（git clone）**：
+  ```bash
+  cd ~/Downloads/judicial-outline-extension
+  git pull
+  ```
+  然後在 `chrome://extensions` 點擊「🔄 重新載入」
+
+### 移除
+
+在 `chrome://extensions` 找到該 extension 卡片，點「移除 / Remove」即可。若是方式 B-1 / B-2 安裝，本機的資料夾也可以手動刪除。
+
+### 疑難排解
+
+- **看不到耳標** → 確認你在的頁面是「判決詳情」而不是搜尋結果列表；列表頁不會注入側欄。
+- **複製時沒附上字號** → 確認你選取的文字**在判決正文區塊內**；若選到頁首的按鈕或導覽元件就不會觸發。
+- **Chrome 跳出「此擴充功能已停用」** → 開發人員模式載入的 extension 每次重啟 Chrome 可能會提示；勾選「繼續允許」或重新啟用即可。
+- **刪除了原資料夾後 extension 消失** → 這是方式 B 的副作用；請重新下載並載入一次。
 
 ## 技術細節
 
