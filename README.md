@@ -12,19 +12,20 @@
 
 點連結 → 按「加到 Chrome」→ 完成。之後 Chrome 會自動更新到最新版，不需任何手動操作。Edge 也可直接從這個連結安裝。
 
-### 🔵 Safari on macOS → 下載 DMG
+### 🔵 Safari on macOS → 下載 ZIP
 
-👉 **[點此直接下載 judicial-outline-helper-0.1.2.dmg](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest/download/judicial-outline-helper-0.1.2.dmg)**
+👉 **[點此直接下載 judicial-outline-helper-0.1.2.zip](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest/download/judicial-outline-helper-0.1.2.zip)**
 
 （或到 [Releases 頁面](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest) 挑選其他版本）
 
-1. 雙擊下載的 DMG → 把 `.app` 拖到 **Applications** 資料夾
-2. 打開 `.app` 一次（會顯示「請到 Safari 設定啟用」的說明畫面，可以關掉）
-3. Safari → **設定 / Settings → 延伸功能 / Extensions** → 勾選「司法院裁判書閱讀助手」
-4. 首次使用時網址列右邊會出現一個「判」字 icon，點它 → **一律在這些網站允許**
-5. 打開任一篇判決頁即可使用
+1. 下載後雙擊 ZIP 解壓縮，得到 `司法院裁判書閱讀助手.app`
+2. 把 `.app` 拖到 **Applications** 資料夾
+3. 打開 `.app` 一次（會顯示「請到 Safari 設定啟用」的說明畫面，可以關掉）
+4. Safari → **設定 / Settings → 延伸功能 / Extensions** → 勾選「司法院裁判書閱讀助手」
+5. 首次使用時網址列右邊會出現一個「判」字 icon，點它 → **一律在這些網站允許**
+6. 打開任一篇判決頁即可使用
 
-DMG 已用 **Apple Developer ID** 簽章，`.app` 已通過 **Apple Notarization**，可直接雙擊安裝，不會有 Gatekeeper 警告。
+`.app` 已用 **Apple Developer ID** 簽章並通過 **Apple Notarization**，可直接雙擊執行，不會有 Gatekeeper 警告。
 
 ---
 
