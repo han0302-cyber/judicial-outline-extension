@@ -32,9 +32,13 @@
 
 ## 安裝
 
-### 方式 A：從 Chrome Web Store 安裝（推薦，待上架後補連結）
+### 方式 A：從 Chrome Web Store 安裝（推薦）
 
-審查通過後本 README 會補上 Chrome Web Store 連結，點一下即可安裝。
+👉 **[https://chromewebstore.google.com/detail/nigjaldhpljkcgedolepmhmifaplpadn](https://chromewebstore.google.com/detail/nigjaldhpljkcgedolepmhmifaplpadn)**
+
+點上面連結 → 按「加到 Chrome」→ 完成。之後 Chrome 會自動更新到最新版，不需要任何手動操作。
+
+Edge 瀏覽器也可以直接從 Chrome Web Store 安裝。
 
 ### 方式 B：從 GitHub 原始碼本機安裝（開發人員模式）
 
