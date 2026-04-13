@@ -46,6 +46,23 @@
 - 側欄 DOM 掛到 `window.top.document`，讓 `position: fixed` 以最外層 viewport 為基準（解決 FJUD 把內容塞進 iframe 時 fixed 被當成 absolute 的問題）
 - 點擊跳轉時沿 frame chain 計算 target 在 top viewport 的絕對 Y，一次 `scrollTo` 扣除 header offset，避免 `scrollIntoView` + delayed `scrollBy` 的動畫競爭
 
+## 專案結構
+
+| 檔案 / 資料夾 | 用途 |
+|---|---|
+| `manifest.json` | Chrome Extension MV3 manifest，宣告 match patterns、icons、content script 路徑 |
+| `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler |
+| `sidebar.css` | 側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables |
+| `icons/` | 擴充功能圖示（16 / 32 / 48 / 128 PNG）與原稿 SVG |
+| `icons/icon.svg` | 圖示原稿（深綠底 + 白色判字 + 三條 outline 橫線） |
+| `icons/README.md` | PNG 匯出指令（rsvg / ImageMagick / 線上工具） |
+| `README.md` | 你正在看的這份文件 |
+| `PRIVACY.md` | 隱私政策（無資料收集聲明） |
+| `STORE_LISTING.md` | Chrome Web Store 上架文案草稿（繁中 + 英） |
+| `build.sh` | 將 runtime 檔案封裝成 `dist/*.zip` 供 CWS 上傳 |
+| `LICENSE` | MIT License |
+| `.gitignore` | macOS / 編輯器 / 封裝產物排除規則 |
+
 ## 授權
 
 MIT License — 詳見 [LICENSE](./LICENSE)。
