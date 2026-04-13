@@ -122,8 +122,6 @@ git clone https://github.com/han0302-cyber/judicial-outline-extension.git
 | `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler |
 | `sidebar.css` | 側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables |
 | `icons/` | 擴充功能圖示（16 / 32 / 48 / 128 PNG）與原稿 SVG |
-| `icons/icon.svg` | 圖示原稿（深綠底 + 白色判字 + 三條 outline 橫線） |
-| `icons/README.md` | PNG 匯出指令（rsvg / ImageMagick / 線上工具） |
 | `README.md` | 你正在看的這份文件 |
 | `PRIVACY.md` | 隱私政策（無資料收集聲明） |
 | `STORE_LISTING.md` | Chrome Web Store 上架文案草稿（繁中 + 英） |
