@@ -14,8 +14,11 @@
 *.zip
 *.crx
 *.pem
+*.dmg
+*.app
 dist/
 build/
+safari/
 
 # Logs
 *.log
