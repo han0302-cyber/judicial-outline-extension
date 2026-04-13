@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts / packaging
+*.zip
+*.crx
+*.pem
+dist/
+build/
+
+# Logs
+*.log

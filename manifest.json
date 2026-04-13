@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "司法院裁判書助手",
+  "version": "0.1.0",
+  "description": "在司法院法學資料檢索系統的裁判書頁面加上左側「判決架構」導覽，並於選取文字複製時自動移除分行、附上裁判字號。",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://legal.judicial.gov.tw/FINT/*",
+        "https://judgment.judicial.gov.tw/FJUD/*"
+      ],
+      "js": ["content.js"],
+      "css": ["sidebar.css"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

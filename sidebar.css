@@ -1,0 +1,160 @@
+/* 司法院裁判書助手 — injected styles
+ * 採 hover tab 樣式（與 JudgmentViewPage 窄屏版一致），避免覆蓋頁面原內容。
+ */
+
+#fint-outline-sidebar {
+  position: fixed;
+  top: 96px;
+  left: 0;
+  z-index: 2147483000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  pointer-events: none;
+  /* Default theme (FJUD, green) */
+  --fint-primary: #2e7d43;
+  --fint-primary-dark: #1b5e20;
+  --fint-primary-soft: #e6f4ea;
+  --fint-border: #c6e4cf;
+}
+
+#fint-outline-sidebar[data-theme="fint"] {
+  /* FINT theme — muted teal, matching legal.judicial.gov.tw tab strip */
+  --fint-primary: #5d8e86;
+  --fint-primary-dark: #2f524d;
+  --fint-primary-soft: #e3efec;
+  --fint-border: #bcd7d1;
+}
+
+#fint-outline-sidebar .fint-outline-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 128px;
+  background: var(--fint-primary);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  writing-mode: vertical-rl;
+  border-radius: 0 10px 10px 0;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+}
+
+#fint-outline-sidebar .fint-outline-card {
+  position: absolute;
+  left: 32px;
+  top: 0;
+  width: 320px;
+  max-height: calc(100vh - 128px);
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 16px 18px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-8px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+  pointer-events: none;
+}
+
+#fint-outline-sidebar:hover .fint-outline-card,
+#fint-outline-sidebar:focus-within .fint-outline-card {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+#fint-outline-sidebar .fint-outline-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fint-primary);
+  margin-bottom: 12px;
+}
+
+#fint-outline-sidebar .fint-outline-card {
+  border-color: var(--fint-border);
+}
+
+#fint-outline-sidebar .fint-outline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#fint-outline-sidebar .fint-outline-item {
+  all: unset;
+  display: block;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #475569;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: inherit;
+}
+
+#fint-outline-sidebar .fint-outline-item:hover {
+  background: var(--fint-primary-soft);
+  color: var(--fint-primary-dark);
+}
+
+#fint-outline-sidebar .fint-outline-level-0 {
+  font-weight: 700;
+  color: #1e293b;
+  padding-left: 8px;
+  font-size: 13px;
+}
+
+#fint-outline-sidebar .fint-outline-level-1 {
+  font-weight: 600;
+  color: #334155;
+  padding-left: 20px;
+}
+
+#fint-outline-sidebar .fint-outline-level-2 {
+  padding-left: 34px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.fint-anchor-target {
+  scroll-margin-top: 96px;
+}
+
+#fint-copy-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%) translateY(10px);
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 16px;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 2147483001;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+}
+
+#fint-copy-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
