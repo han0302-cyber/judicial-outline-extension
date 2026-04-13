@@ -1,8 +1,12 @@
-// 司法院裁判書助手 — content script for legal.judicial.gov.tw/FINT/data.aspx
+// 司法院裁判書助手 — content script for FINT / FJUD detail pages
+//
+// 支援網域：
+//   legal.judicial.gov.tw/FINT/*    (法學資料檢索系統)
+//   judgment.judicial.gov.tw/FJUD/* (裁判書系統)
 //
 // 三件事：
 //   1. 在左側固定一個「判決架構」卡片（hover tab），掃描正文內容的層級標記
-//      （壹、一、(一)、1.、(1)、㈠、⒈、⑴ ...），點擊 scroll 到對應段落。
+//      （壹、一、(一)、㈠...）與主文/事實/理由三大段，點擊 scroll 到對應段落。
 //   2. 攔截 copy 事件：將選取文字的分行壓縮成單行，於尾端附上
 //      「（<裁判字號>意旨參照）」後寫入剪貼簿（Win/Mac 通用）。
 //   3. 裁判字號從頁面「裁判字號：」欄位擷取後移除所有空白。
@@ -39,15 +43,13 @@
   const CHINESE_UPPER_NUM = '[壹貳參肆伍陸柒捌玖拾甲乙丙丁戊己庚辛壬癸]'
   const CHINESE_NUM = '[一二三四五六七八九十百零〇]'
 
+  // Only levels 0-2 show up in the outline (callers filter level > 2),
+  // so we only declare patterns for those three levels.
   const HIERARCHY_PATTERNS = [
     { level: 0, pattern: new RegExp('^' + CHINESE_UPPER_NUM + '+\\s*[、.,．]') },
-    { level: 2, pattern: /^[\u3220-\u3229]/ },
-    { level: 3, pattern: /^[\u2488-\u249B]/ },
-    { level: 4, pattern: /^[\u2474-\u2487]/ },
-    { level: 2, pattern: new RegExp('^[（(]\\s*' + CHINESE_NUM + '+\\s*[）)]') },
-    { level: 4, pattern: /^[（(]\s*\d+\s*[）)]/ },
     { level: 1, pattern: new RegExp('^' + CHINESE_NUM + '+\\s*[、.,．]') },
-    { level: 3, pattern: /^\d+\s*[、.．]/ },
+    { level: 2, pattern: /^[\u3220-\u3229]/ },
+    { level: 2, pattern: new RegExp('^[（(]\\s*' + CHINESE_NUM + '+\\s*[）)]') },
   ]
 
   function detectLevel(text) {
@@ -68,10 +70,6 @@
   }
 
   // ----- Locate judgment body -----
-  //
-  // FINT / FJUD 的正文容器慣例：外層 `#jud`，內層取以下任一個取到非空的為主：
-  //   `.htmlcontent` / `.text-pre` / `.jud_content`
-  // 抓不到時退回 `#jud` 本體；再抓不到時掃整個 document 中字數最多的 leaf 容器。
   function findBodyContainer() {
     // 兩套系統結構不同：
     //
@@ -246,10 +244,6 @@
       for (const seg of segments) {
         if (pos >= seg.start && pos < seg.end) {
           return { node: seg.node, offset: pos - seg.start }
-        }
-        if (pos === seg.end) {
-          // Prefer attaching to the next segment's start if it exists
-          // (so the anchor lands before the next visible char).
         }
       }
       // Fall back to the earliest segment whose start >= pos
@@ -454,9 +448,8 @@
   //
   // 判決內容在 FJUD 站是動態載入（default.aspx 下透過 iframe 或 AJAX 注入
   // data.aspx 內容），所以 document_idle 當下不一定能拿到 `#jud`。策略：
-  //   1. 立刻安裝 copy handler，caseLabel 延遲擷取；
-  //   2. 試著建構側欄，若 `#jud` 還沒出現，用 MutationObserver 等它出現；
-  //   3. 15 秒後停止觀察，避免長跑。
+  // 試著建構側欄；若 `#jud` 還沒出現，用 MutationObserver 等它出現（15 秒
+  // 後停止觀察，避免在非裁判書頁面長跑）。
   let sidebarBuilt = false
   let cachedCaseLabel = null
 
@@ -472,17 +465,10 @@
     const body = findBodyContainer()
     if (!body) return false
     const items = annotateAnchors(body)
-    console.log('[FINT Helper] body container:', body, 'items:', items.length)
     renderSidebar(items)
+    installCopyHandler()
     sidebarBuilt = true
     return true
-  }
-
-  function onBodyReady() {
-    if (!window.__fintCopyInstalled) {
-      window.__fintCopyInstalled = true
-      installCopyHandler()
-    }
   }
 
   function removeExistingSidebar() {
@@ -498,24 +484,13 @@
       // sidebar —— 即使本次是列表頁、最後不會重建 sidebar，也能讓耳標消失。
       removeExistingSidebar()
 
-      if (tryBuildSidebar()) {
-        onBodyReady()
-        return
-      }
+      if (tryBuildSidebar()) return
 
       const obs = new MutationObserver(() => {
-        if (tryBuildSidebar()) {
-          onBodyReady()
-          obs.disconnect()
-        }
+        if (tryBuildSidebar()) obs.disconnect()
       })
       obs.observe(document.documentElement, { childList: true, subtree: true })
-      setTimeout(() => {
-        obs.disconnect()
-        if (!sidebarBuilt) {
-          console.log('[FINT Helper] no #jud detail container — extension stays idle on this page')
-        }
-      }, 15000)
+      setTimeout(() => obs.disconnect(), 15000)
     } catch (err) {
       console.error('[FINT Helper]', err)
     }

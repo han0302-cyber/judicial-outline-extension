@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Rounded background -->
+  <rect width="128" height="128" rx="24" ry="24" fill="#2e7d43"/>
+
+  <!-- 判 character (centered, upper portion) -->
+  <text x="64" y="62"
+        font-family="'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif"
+        font-size="56" font-weight="700"
+        text-anchor="middle" fill="#ffffff">判</text>
+
+  <!-- Three outline bars suggesting the bookmark / outline feature -->
+  <rect x="30" y="84"  width="68" height="6" rx="3" fill="#ffffff" opacity="1.00"/>
+  <rect x="40" y="97"  width="58" height="6" rx="3" fill="#ffffff" opacity="0.80"/>
+  <rect x="50" y="110" width="48" height="6" rx="3" fill="#ffffff" opacity="0.60"/>
+</svg>
