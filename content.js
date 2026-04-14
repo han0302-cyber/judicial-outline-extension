@@ -22,37 +22,55 @@
 
   // ----- User preferences (from chrome.storage.sync) -----
   //
-  // Per-site sidebar placement. Defaults to left; user can flip via the
-  // extension's options page. `userPositions` is populated asynchronously
-  // when storage resolves, and live-updated via onChanged listener.
+  // Per-site sidebar placement + global "append citation suffix on copy"
+  // toggle. Defaults: positions = left, appendCitation = true. User can
+  // change them via the extension's options page; values are populated
+  // asynchronously when storage resolves and live-updated via onChanged.
   let userPositions = {
     fint: 'left',
     fjud: 'left',
   }
+  let userAppendCitation = true
   const positionsReady = new Promise((resolve) => {
     try {
-      chrome.storage.sync.get({ positions: userPositions }, (result) => {
-        if (result && result.positions) {
-          userPositions = Object.assign({}, userPositions, result.positions)
-        }
-        resolve()
-      })
+      chrome.storage.sync.get(
+        { positions: userPositions, appendCitation: true },
+        (result) => {
+          if (result && result.positions) {
+            userPositions = Object.assign({}, userPositions, result.positions)
+          }
+          if (result && typeof result.appendCitation === 'boolean') {
+            userAppendCitation = result.appendCitation
+          }
+          resolve()
+        },
+      )
     } catch (_) {
       resolve()
     }
   })
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'sync' || !changes.positions) return
-      userPositions = Object.assign(
-        {},
-        userPositions,
-        changes.positions.newValue || {},
-      )
-      // Re-render sidebar on open tabs so the setting applies immediately.
-      sidebarBuilt = false
-      removeExistingSidebar()
-      tryBuildSidebar()
+      if (area !== 'sync') return
+      let needsRerender = false
+      if (changes.positions) {
+        userPositions = Object.assign(
+          {},
+          userPositions,
+          changes.positions.newValue || {},
+        )
+        needsRerender = true
+      }
+      if (changes.appendCitation) {
+        userAppendCitation = changes.appendCitation.newValue !== false
+        // Copy handler reads userAppendCitation lazily on each event,
+        // so the new value applies immediately to the next copy.
+      }
+      if (needsRerender) {
+        sidebarBuilt = false
+        removeExistingSidebar()
+        tryBuildSidebar()
+      }
     })
   } catch (_) {}
 
@@ -515,7 +533,7 @@
         const raw = sel.toString()
         if (!raw.trim()) return
         const clean = cleanCopyText(raw)
-        const caseLabel = getCaseLabel()
+        const caseLabel = userAppendCitation ? getCaseLabel() : ''
         const suffix = caseLabel ? '（' + caseLabel + '意旨參照）' : ''
         const finalText = clean + suffix
         try {
