@@ -14,9 +14,11 @@
 
 ### 🔵 Safari on macOS → 下載 ZIP
 
-👉 **[點此直接下載 judicial-outline-helper-0.1.5.zip](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest/download/judicial-outline-helper-0.1.5.zip)**
+👉 **[點此直接下載 judicial-outline-helper-0.1.2.zip](https://github.com/han0302-cyber/judicial-outline-extension/releases/download/v0.1.2/judicial-outline-helper-0.1.2.zip)**
 
-（或到 [Releases 頁面](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest) 挑選其他版本）
+（或到 [Releases 頁面](https://github.com/han0302-cyber/judicial-outline-extension/releases) 挑選其他版本）
+
+> 註：Safari 版目前**鎖定在 0.1.2**。0.1.3 以後加入的「事實及理由」偵測、後台設定頁等功能在 Safari 上有相容性問題尚待修復，請暫時使用此版本以確保耳標能正常出現。
 
 1. 下載後雙擊 ZIP 解壓縮，得到 `司法院裁判書閱讀助手.app`
 2. 把 `.app` 拖到 **Applications** 資料夾
@@ -26,6 +28,10 @@
 6. 打開任一篇判決頁即可使用
 
 `.app` 已用 **Apple Developer ID** 簽章並通過 **Apple Notarization**，可直接雙擊執行，不會有 Gatekeeper 警告。
+
+> ⚠️ **Safari 版的後台設定頁面（耳標位置切換、複製附字號開關）尚未完成**，因此 Safari 提供的下載暫時鎖定在 **0.1.2**。
+> 0.1.2 行為固定為：耳標停靠在頁面**左側**、複製時**自動附上**裁判字號，且尚未支援「事實及理由」段落偵測。
+> 若你需要這些較新的功能或想自訂設定，請改用 Chrome / Edge 版本；Safari 版待後續修復完畢後再升版。
 
 ---
 
@@ -37,39 +43,17 @@
    - 「主文」若後接無編號正文，自動補一個子條目供跳轉
    - 點擊條目平滑捲動到對應段落，自動扣掉 sticky header 高度
    - 支援「判決易讀小幫手」包住專有名詞的 `<a>` 連結，不會截斷 label
-   - 耳標可由設定頁切換停靠在頁面**左側或右側**
 
 2. **智慧複製**
    - 選取文字後複製，自動移除所有分行與 CJK 字元間的 padding 空白
    - 保留 ASCII 英數之間的空格（例如 `NT 300` 不會變成 `NT300`）
-   - 尾端自動附上 `（<裁判字號>意旨參照）` —— 字號從頁面「裁判字號：」欄位擷取，可在設定頁一鍵關閉
+   - 尾端自動附上 `（<裁判字號>意旨參照）` —— 字號從頁面「裁判字號：」欄位擷取
    - Windows / macOS 共用同一套 copy handler
 
 3. **自動主題配色**
    - `legal.judicial.gov.tw` (FINT / 法學資料檢索系統) → muted teal 主色
    - `judgment.judicial.gov.tw` (FJUD / 裁判書系統) → 綠色主色
    - 每次 iframe 導航自動清理舊側欄、重新建構
-
-4. **使用者設定（後台選項頁面）**
-   - 任意時間可調整、立即套用、跨裝置同步（透過 `chrome.storage.sync`）
-   - 詳見下方「⚙️ 設定」段
-
-## ⚙️ 設定
-
-開啟設定頁面的方法：
-
-- **方法 A**：`chrome://extensions` → 找到「司法院裁判書閱讀助手」卡片 → **「詳細資料 / Details」** → 往下捲到 **「擴充功能選項 / Extension options」** → 點開
-- **方法 B**：右鍵點 Chrome 右上角的 extension icon → **「選項 / Options」**
-
-設定頁目前包含兩個區塊：
-
-| 區塊 | 設定項 | 說明 | 預設 |
-|---|---|---|---|
-| **複製設定** | 複製時自動附上裁判字號 | 開啟時，選取文字複製後尾端追加「（XX意旨參照）」；關閉時只移除分行不附字號 | 開 |
-| **耳標位置** | 法學資料檢索系統（FINT）左 / 右 | 「判決架構」直條耳標停靠在頁面左側或右側 | 左 |
-| **耳標位置** | 裁判書系統（FJUD）左 / 右 | 同上，每個網站獨立設定 | 左 |
-
-所有設定**變更後立即套用**，已開啟的判決頁不需 reload —— 側欄會在 1 秒內自動切到新位置、複製功能也會立即遵循新規則。設定透過 `chrome.storage.sync` 儲存，登入同一個 Google 帳號的其他 Chrome 裝置會自動同步。
 
 ## 支援頁面
 
@@ -125,8 +109,7 @@ git clone https://github.com/han0302-cyber/judicial-outline-extension.git
 ## 🐞 疑難排解
 
 - **看不到耳標** → 確認你在的頁面是「判決詳情」而不是搜尋結果列表；列表頁不會注入側欄
-- **複製時沒附上字號** → 確認你選取的文字**在判決正文區塊內**；若選到頁首按鈕或導覽就不會觸發；或檢查設定頁的「複製時自動附上裁判字號」是否被關掉
-- **耳標位置想換到右邊** → 開設定頁（chrome://extensions → 詳細資料 → 擴充功能選項），對該網站選「右側」，不用 reload 立即套用
+- **複製時沒附上字號** → 確認你選取的文字**在判決正文區塊內**；若選到頁首按鈕或導覽就不會觸發
 - **Safari 安裝後要求「允許未簽署的延伸功能」** → 你裝到的是 Xcode dev build 而不是 Release ZIP。從本 README 的 GitHub Release 連結重新下載 ZIP，安裝後就不需要這個選項
 - **Chrome 開發人員模式裝的版本重啟後消失** → 請改從 Chrome Web Store 安裝，免維護
 
@@ -145,11 +128,9 @@ git clone https://github.com/han0302-cyber/judicial-outline-extension.git
 
 | 檔案 / 資料夾 | 用途 |
 |---|---|
-| `manifest.json` | Chrome Extension MV3 manifest，宣告 match patterns、icons、permissions、content script 路徑、options page |
-| `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler、讀取使用者偏好 |
-| `sidebar.css` | 側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables、左右側位置 |
-| `options.html` | 後台設定頁面（擴充功能選項）—— 複製設定 + 耳標位置 |
-| `options.js` | 設定頁面的讀寫邏輯，使用 `chrome.storage.sync` |
+| `manifest.json` | Chrome Extension MV3 manifest，宣告 match patterns、icons、content script 路徑 |
+| `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler |
+| `sidebar.css` | 側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables |
 | `icons/` | 擴充功能圖示（16 / 32 / 48 / 128 PNG）與原稿 SVG |
 | `README.md` | 你正在看的這份文件 |
 | `PRIVACY.md` | 隱私政策（無資料收集聲明） |

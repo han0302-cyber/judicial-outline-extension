@@ -20,59 +20,19 @@
   if (window.__fintHelperInstalled) return
   window.__fintHelperInstalled = true
 
-  // ----- User preferences (from chrome.storage.sync) -----
+  // ----- User preferences -----
   //
-  // Per-site sidebar placement + global "append citation suffix on copy"
-  // toggle. Defaults: positions = left, appendCitation = true. User can
-  // change them via the extension's options page; values are populated
-  // asynchronously when storage resolves and live-updated via onChanged.
-  let userPositions = {
+  // 之前曾把這兩個值存到 chrome.storage.sync 並提供 options page 設定。在
+  // Safari Web Extension 上發現 storage 子系統會在 extension 沒有 active UI
+  // 時被暫停，導致 content script 第一次注入時 storage callback 永不 fire、
+  // sidebar 永遠建不出來。為求穩定，回退為硬編預設：耳標靠左、複製時附上
+  // 裁判字號。如未來要重做設定頁，請走 background service worker 路線並
+  // 用 timeout 包住 storage.get。
+  const userPositions = {
     fint: 'left',
     fjud: 'left',
   }
-  let userAppendCitation = true
-  const positionsReady = new Promise((resolve) => {
-    try {
-      chrome.storage.sync.get(
-        { positions: userPositions, appendCitation: true },
-        (result) => {
-          if (result && result.positions) {
-            userPositions = Object.assign({}, userPositions, result.positions)
-          }
-          if (result && typeof result.appendCitation === 'boolean') {
-            userAppendCitation = result.appendCitation
-          }
-          resolve()
-        },
-      )
-    } catch (_) {
-      resolve()
-    }
-  })
-  try {
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'sync') return
-      let needsRerender = false
-      if (changes.positions) {
-        userPositions = Object.assign(
-          {},
-          userPositions,
-          changes.positions.newValue || {},
-        )
-        needsRerender = true
-      }
-      if (changes.appendCitation) {
-        userAppendCitation = changes.appendCitation.newValue !== false
-        // Copy handler reads userAppendCitation lazily on each event,
-        // so the new value applies immediately to the next copy.
-      }
-      if (needsRerender) {
-        sidebarBuilt = false
-        removeExistingSidebar()
-        tryBuildSidebar()
-      }
-    })
-  } catch (_) {}
+  const userAppendCitation = true
 
   // ----- Host document resolution -----
   //
@@ -609,7 +569,7 @@
 
   let currentObserver = null
 
-  async function init() {
+  function init() {
     try {
       // 每次 content script 重跑（iframe 導航 / SPA 路由切換）都先清掉上一
       // 次注入的 sidebar —— 即使本次是列表頁、最後不會重建 sidebar，也能讓
@@ -623,10 +583,10 @@
         currentObserver = null
       }
 
-      // 等 chrome.storage.sync 把使用者的 per-site 位置設定載進 userPositions，
-      // 首次 render 的 sidebar 才會放在正確的邊。後續 init() 不需再等（Promise 已 resolved）。
-      await positionsReady
-
+      // 不能 await storage.sync — Safari 在 extension 沒有 active UI 時會把
+      // storage 子系統暫停，callback 可能永遠不會 fire，sidebar 就永遠不會
+      // 建。改成 fire-and-forget：先用預設值（或上次 callback 已寫入的值）
+      // render，等 storage 真的回來時再透過上面那段 get callback re-render。
       if (tryBuildSidebar()) return
 
       const obs = new MutationObserver(() => {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "司法院裁判書閱讀助手",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "在司法院法學資料檢索系統的裁判書頁面加上「判決架構」導覽，並於選取文字複製時自動移除分行、附上裁判字號。",
   "homepage_url": "https://github.com/han0302-cyber/judicial-outline-extension",
   "icons": {
@@ -9,11 +9,6 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "permissions": ["storage"],
-  "options_ui": {
-    "page": "options.html",
-    "open_in_tab": true
   },
   "content_scripts": [
     {
