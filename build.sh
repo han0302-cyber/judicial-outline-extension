@@ -36,6 +36,8 @@ zip -r "$OUT_FILE" \
   manifest.json \
   content.js \
   sidebar.css \
+  options.html \
+  options.js \
   icons/icon16.png \
   icons/icon32.png \
   icons/icon48.png \

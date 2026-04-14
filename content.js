@@ -1,4 +1,4 @@
-// 司法院裁判書助手 — content script for FINT / FJUD detail pages
+// 司法院裁判書閱讀助手 — content script
 //
 // 支援網域：
 //   legal.judicial.gov.tw/FINT/*    (法學資料檢索系統)
@@ -19,6 +19,42 @@
 
   if (window.__fintHelperInstalled) return
   window.__fintHelperInstalled = true
+
+  // ----- User preferences (from chrome.storage.sync) -----
+  //
+  // Per-site sidebar placement. Defaults to left; user can flip via the
+  // extension's options page. `userPositions` is populated asynchronously
+  // when storage resolves, and live-updated via onChanged listener.
+  let userPositions = {
+    fint: 'left',
+    fjud: 'left',
+  }
+  const positionsReady = new Promise((resolve) => {
+    try {
+      chrome.storage.sync.get({ positions: userPositions }, (result) => {
+        if (result && result.positions) {
+          userPositions = Object.assign({}, userPositions, result.positions)
+        }
+        resolve()
+      })
+    } catch (_) {
+      resolve()
+    }
+  })
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'sync' || !changes.positions) return
+      userPositions = Object.assign(
+        {},
+        userPositions,
+        changes.positions.newValue || {},
+      )
+      // Re-render sidebar on open tabs so the setting applies immediately.
+      sidebarBuilt = false
+      removeExistingSidebar()
+      tryBuildSidebar()
+    })
+  } catch (_) {}
 
   // ----- Host document resolution -----
   //
@@ -71,7 +107,7 @@
 
   // ----- Locate judgment body -----
   function findBodyContainer() {
-    // 兩套系統結構不同：
+    // 兩個來源網站結構不同：
     //
     //   FJUD (judgment.judicial.gov.tw/FJUD/data.aspx)：
     //     #jud → .htmlcontent / .text-pre / .jud_content
@@ -80,7 +116,6 @@
     //   FINT (legal.judicial.gov.tw/FINT/data.aspx)：
     //     #plCJData .col-all.text-pre  (憲法法庭裁判等)
     //     #plFull   .col-all.text-pre  (精選裁判全文等)
-    //     都是 div 結構，內含真 \n 排版。
 
     // FJUD
     const jud = document.querySelector('#jud')
@@ -175,11 +210,11 @@
     }
 
     const rawSeen = new Set()
-    const rawHits = [] // { pos, level }
-    const pushRaw = (pos, level) => {
+    const rawHits = [] // { pos, level, forcedLabel? }
+    const pushRaw = (pos, level, forcedLabel) => {
       if (rawSeen.has(pos)) return
       rawSeen.add(pos)
-      rawHits.push({ pos, level })
+      rawHits.push({ pos, level, forcedLabel })
     }
 
     // Pass A: line-start-ish candidates. 候選位置 = 0 與任何 START_CONTEXT_RE
@@ -201,9 +236,33 @@
       const lineText = lineTextAt(realPos)
       if (!lineText) continue
 
-      // Section heading (主文/事實/理由)
+      // Section heading (主文/事實/理由) — force short label so the label
+      // slicer below doesn't spill into the section's body content when
+      // the heading isn't immediately followed by a numbered marker.
       if (SECTION_HEADER_RE.test(lineText)) {
-        pushRaw(realPos, 0)
+        pushRaw(realPos, 0, lineText.replace(/\s+/g, ''))
+        // If the next non-empty line below this heading has no hierarchy
+        // marker (typical of 主文 — unnumbered verdict text), synthesise a
+        // level-1 entry pointing at the first content line so users can
+        // still navigate to the body from the outline.
+        const nlPos = full.indexOf('\n', realPos)
+        if (nlPos !== -1 && nlPos + 1 < full.length) {
+          let contentPos = nlPos + 1
+          while (
+            contentPos < full.length &&
+            /\s/.test(full.charAt(contentPos))
+          ) contentPos++
+          if (contentPos < full.length) {
+            const contentLine = lineTextAt(contentPos)
+            if (
+              contentLine &&
+              !SECTION_HEADER_RE.test(contentLine) &&
+              detectLevel(full.slice(contentPos, contentPos + 24)) === null
+            ) {
+              pushRaw(contentPos, 1)
+            }
+          }
+        }
         continue
       }
 
@@ -230,9 +289,14 @@
     const hits = []
     for (let i = 0; i < rawHits.length; i++) {
       const cur = rawHits[i]
-      const next = rawHits[i + 1]
-      const labelEnd = Math.min(next ? next.pos : full.length, cur.pos + 80)
-      const label = full.slice(cur.pos, labelEnd).replace(/\s+/g, '').trim()
+      let label
+      if (cur.forcedLabel) {
+        label = cur.forcedLabel
+      } else {
+        const next = rawHits[i + 1]
+        const labelEnd = Math.min(next ? next.pos : full.length, cur.pos + 80)
+        label = full.slice(cur.pos, labelEnd).replace(/\s+/g, '').trim()
+      }
       if (!label) continue
       hits.push({ pos: cur.pos, level: cur.level, text: label })
     }
@@ -292,13 +356,19 @@
 
     const aside = hostDoc.createElement('aside')
     aside.id = 'fint-outline-sidebar'
-    // Theme based on top host: FINT → red, FJUD → green
+    // Theme based on top host:
+    //   legal.judicial.gov.tw  (FINT)    → muted teal
+    //   anything else          (FJUD...) → green (default)
+    let theme = 'fjud'
     try {
       const host = (hostDoc.defaultView || window).location.hostname
-      aside.dataset.theme = host.indexOf('legal.judicial.gov.tw') !== -1 ? 'fint' : 'fjud'
-    } catch (_) {
-      aside.dataset.theme = 'fjud'
-    }
+      if (host.indexOf('legal.judicial.gov.tw') !== -1) theme = 'fint'
+    } catch (_) {}
+    aside.dataset.theme = theme
+
+    // Per-site position (left / right), user-configurable via options page.
+    const position = (userPositions && userPositions[theme]) || 'left'
+    aside.dataset.position = position === 'right' ? 'right' : 'left'
 
     const tab = hostDoc.createElement('div')
     tab.className = 'fint-outline-tab'
@@ -328,23 +398,54 @@
         btn.textContent = shortenLabel(item.text)
         btn.title = item.text
         btn.addEventListener('click', () => {
-          // Target lives in iframe's document. Compute its absolute Y in the
-          // top window by walking up the frame chain, then scroll the top
-          // window directly — one smooth scroll with the header offset baked
-          // in, so there's no animation race with scrollIntoView.
           const target = document.getElementById(item.id)
           if (!target) return
           const HEADER_OFFSET = 120
-          const topWin = hostDoc.defaultView || window
+          const inIframe = window !== window.top
+
           try {
-            let y = target.getBoundingClientRect().top
-            let w = window
-            while (w !== topWin && w.frameElement) {
-              y += w.frameElement.getBoundingClientRect().top
-              w = w.parent
+            if (inIframe) {
+              // FJUD / FINT: target is inside an iframe. Walk the frame chain
+              // up to the top window, compute absolute Y, scroll topWin once.
+              const topWin = hostDoc.defaultView || window
+              let y = target.getBoundingClientRect().top
+              let w = window
+              while (w !== topWin && w.frameElement) {
+                y += w.frameElement.getBoundingClientRect().top
+                w = w.parent
+              }
+              const desired = topWin.scrollY + y - HEADER_OFFSET
+              topWin.scrollTo({ top: desired, left: topWin.scrollX, behavior: 'smooth' })
+            } else {
+              // Top-level page (direct data.aspx access): find the nearest
+              // ancestor that is actually scrollable; fall back to window.
+              let scroller = null
+              let p = target.parentElement
+              while (p) {
+                const st = getComputedStyle(p)
+                if ((st.overflowY === 'auto' || st.overflowY === 'scroll') &&
+                    p.scrollHeight > p.clientHeight + 1) {
+                  scroller = p
+                  break
+                }
+                p = p.parentElement
+              }
+              if (scroller) {
+                const tRect = target.getBoundingClientRect()
+                const sRect = scroller.getBoundingClientRect()
+                scroller.scrollTo({
+                  top: scroller.scrollTop + (tRect.top - sRect.top) - HEADER_OFFSET,
+                  left: scroller.scrollLeft,
+                  behavior: 'smooth',
+                })
+              } else {
+                window.scrollTo({
+                  top: window.scrollY + target.getBoundingClientRect().top - HEADER_OFFSET,
+                  left: window.scrollX,
+                  behavior: 'smooth',
+                })
+              }
             }
-            const desired = topWin.scrollY + y - HEADER_OFFSET
-            topWin.scrollTo({ top: desired, left: topWin.scrollX, behavior: 'smooth' })
           } catch (_) {
             target.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }
@@ -360,7 +461,7 @@
 
   // ----- 裁判字號 extraction -----
   function extractCaseLabel() {
-    // 先找 `.row > .col-th=裁判字號`（FJUD/FINT 共通 metadata 結構）
+    // FJUD / FINT：先找 `.row > .col-th=裁判字號`（兩套共通 metadata 結構）
     const rows = document.querySelectorAll('.row')
     for (const row of rows) {
       const th = row.querySelector('.col-th')
@@ -447,9 +548,12 @@
   // ----- Main -----
   //
   // 判決內容在 FJUD 站是動態載入（default.aspx 下透過 iframe 或 AJAX 注入
-  // data.aspx 內容），所以 document_idle 當下不一定能拿到 `#jud`。策略：
-  // 試著建構側欄；若 `#jud` 還沒出現，用 MutationObserver 等它出現（15 秒
-  // 後停止觀察，避免在非裁判書頁面長跑）。
+  // data.aspx 內容），所以 document_idle 當下不一定能拿到 `#jud`。Lawsnote
+  // 更是完整 React SPA —— 初次 render 要等 React mount、且點另一筆判決時
+  // URL 改變但不 reload，script 不會自動重跑。策略：
+  //   1. 試著建構側欄；若容器還沒出現，用 MutationObserver 等它出現（15 秒
+  //      後停止觀察，避免在非裁判書頁面長跑）
+  //   2. Hook history.pushState / replaceState / popstate，URL 變動時重跑
   let sidebarBuilt = false
   let cachedCaseLabel = null
 
@@ -460,13 +564,18 @@
     return v || ''
   }
 
+  let copyHandlerInstalled = false
+
   function tryBuildSidebar() {
     if (sidebarBuilt) return true
     const body = findBodyContainer()
     if (!body) return false
     const items = annotateAnchors(body)
     renderSidebar(items)
-    installCopyHandler()
+    if (!copyHandlerInstalled) {
+      installCopyHandler()
+      copyHandlerInstalled = true
+    }
     sidebarBuilt = true
     return true
   }
@@ -478,19 +587,40 @@
     if (oldToast) oldToast.remove()
   }
 
-  function init() {
+  let currentObserver = null
+
+  async function init() {
     try {
-      // 每次 content script 重跑（iframe 導航到新頁）都先清掉上一次注入的
-      // sidebar —— 即使本次是列表頁、最後不會重建 sidebar，也能讓耳標消失。
+      // 每次 content script 重跑（iframe 導航 / SPA 路由切換）都先清掉上一
+      // 次注入的 sidebar —— 即使本次是列表頁、最後不會重建 sidebar，也能讓
+      // 耳標消失。
       removeExistingSidebar()
+      sidebarBuilt = false
+      cachedCaseLabel = null
+
+      if (currentObserver) {
+        currentObserver.disconnect()
+        currentObserver = null
+      }
+
+      // 等 chrome.storage.sync 把使用者的 per-site 位置設定載進 userPositions，
+      // 首次 render 的 sidebar 才會放在正確的邊。後續 init() 不需再等（Promise 已 resolved）。
+      await positionsReady
 
       if (tryBuildSidebar()) return
 
       const obs = new MutationObserver(() => {
-        if (tryBuildSidebar()) obs.disconnect()
+        if (tryBuildSidebar()) {
+          obs.disconnect()
+          if (currentObserver === obs) currentObserver = null
+        }
       })
+      currentObserver = obs
       obs.observe(document.documentElement, { childList: true, subtree: true })
-      setTimeout(() => obs.disconnect(), 15000)
+      setTimeout(() => {
+        obs.disconnect()
+        if (currentObserver === obs) currentObserver = null
+      }, 15000)
     } catch (err) {
       console.error('[FINT Helper]', err)
     }

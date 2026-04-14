@@ -25,6 +25,24 @@
   --fint-border: #bcd7d1;
 }
 
+/* ----- Right-side anchoring (user-configurable via options page) ----- */
+#fint-outline-sidebar[data-position="right"] {
+  left: auto;
+  right: 0;
+}
+#fint-outline-sidebar[data-position="right"] .fint-outline-tab {
+  border-radius: 10px 0 0 10px;
+}
+#fint-outline-sidebar[data-position="right"] .fint-outline-card {
+  left: auto;
+  right: 32px;
+  transform: translateX(8px);
+}
+#fint-outline-sidebar[data-position="right"]:hover .fint-outline-card,
+#fint-outline-sidebar[data-position="right"]:focus-within .fint-outline-card {
+  transform: translateX(0);
+}
+
 #fint-outline-sidebar .fint-outline-tab {
   display: flex;
   align-items: center;
