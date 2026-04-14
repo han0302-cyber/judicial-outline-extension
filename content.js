@@ -216,8 +216,10 @@
 
     // --- Collect hit positions on the flat string ---
     //
-    // 判決三大段的 section heading — 可能寫成「主文」、「主 文」、「主　文」
-    const SECTION_HEADER_RE = /^[主事理][\s\u3000]*[文實由][\s\u3000]*$/
+    // 判決段落 section heading：
+    //   單字段：主文 / 事實 / 理由（可能寫成「主 文」「主　文」）
+    //   合併段：事實及理由（部分法院如地院刑事判決常用）
+    const SECTION_HEADER_RE = /^(?:[主事理][\s\u3000]*[文實由]|事[\s\u3000]*實[\s\u3000]*及[\s\u3000]*理[\s\u3000]*由)[\s\u3000]*$/
     // 句尾/段首上下文：這些字元之後的下一個非空白字元是潛在的 line start。
     const START_CONTEXT_RE = /[。！？；：!?;:\n]/
 
