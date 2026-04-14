@@ -14,7 +14,7 @@
 
 ### 🔵 Safari on macOS → 下載 ZIP
 
-👉 **[點此直接下載 judicial-outline-helper-0.1.2.zip](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest/download/judicial-outline-helper-0.1.2.zip)**
+👉 **[點此直接下載 judicial-outline-helper-0.1.5.zip](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest/download/judicial-outline-helper-0.1.5.zip)**
 
 （或到 [Releases 頁面](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest) 挑選其他版本）
 
