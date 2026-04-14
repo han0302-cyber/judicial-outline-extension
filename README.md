@@ -48,6 +48,27 @@
    - `judgment.judicial.gov.tw` (FJUD / 裁判書系統) → 綠色主色
    - 每次 iframe 導航自動清理舊側欄、重新建構
 
+4. **使用者設定（後台選項頁面）**
+   - 任意時間可調整、立即套用、跨裝置同步（透過 `chrome.storage.sync`）
+   - 詳見下方「⚙️ 設定」段
+
+## ⚙️ 設定
+
+開啟設定頁面的方法：
+
+- **方法 A**：`chrome://extensions` → 找到「司法院裁判書閱讀助手」卡片 → **「詳細資料 / Details」** → 往下捲到 **「擴充功能選項 / Extension options」** → 點開
+- **方法 B**：右鍵點 Chrome 右上角的 extension icon → **「選項 / Options」**
+
+設定頁目前包含兩個區塊：
+
+| 區塊 | 設定項 | 說明 | 預設 |
+|---|---|---|---|
+| **複製設定** | 複製時自動附上裁判字號 | 開啟時，選取文字複製後尾端追加「（XX意旨參照）」；關閉時只移除分行不附字號 | 開 |
+| **耳標位置** | 法學資料檢索系統（FINT）左 / 右 | 「判決架構」直條耳標停靠在頁面左側或右側 | 左 |
+| **耳標位置** | 裁判書系統（FJUD）左 / 右 | 同上，每個網站獨立設定 | 左 |
+
+所有設定**變更後立即套用**，已開啟的判決頁不需 reload —— 側欄會在 1 秒內自動切到新位置、複製功能也會立即遵循新規則。設定透過 `chrome.storage.sync` 儲存，登入同一個 Google 帳號的其他 Chrome 裝置會自動同步。
+
 ## 支援頁面
 
 | 網站 | URL pattern | 說明 |
@@ -121,9 +142,11 @@ git clone https://github.com/han0302-cyber/judicial-outline-extension.git
 
 | 檔案 / 資料夾 | 用途 |
 |---|---|
-| `manifest.json` | Chrome Extension MV3 manifest，宣告 match patterns、icons、content script 路徑 |
-| `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler |
-| `sidebar.css` | 側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables |
+| `manifest.json` | Chrome Extension MV3 manifest，宣告 match patterns、icons、permissions、content script 路徑、options page |
+| `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler、讀取使用者偏好 |
+| `sidebar.css` | 側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables、左右側位置 |
+| `options.html` | 後台設定頁面（擴充功能選項）—— 複製設定 + 耳標位置 |
+| `options.js` | 設定頁面的讀寫邏輯，使用 `chrome.storage.sync` |
 | `icons/` | 擴充功能圖示（16 / 32 / 48 / 128 PNG）與原稿 SVG |
 | `README.md` | 你正在看的這份文件 |
 | `PRIVACY.md` | 隱私政策（無資料收集聲明） |
