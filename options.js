@@ -4,9 +4,17 @@
 const SITES = ['fint', 'fjud']
 const DEFAULTS = { fint: 'left', fjud: 'left' }
 
+function clampDepth(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 3
+  if (n < 1) return 1
+  if (n > 6) return 6
+  return Math.floor(n)
+}
+
 function loadSettings() {
   chrome.storage.sync.get(
-    { positions: DEFAULTS, appendCitation: true },
+    { positions: DEFAULTS, appendCitation: true, maxDepth: 3 },
     (result) => {
       const positions = Object.assign({}, DEFAULTS, result.positions || {})
       SITES.forEach((site) => {
@@ -21,6 +29,11 @@ function loadSettings() {
         'input[name="citation"][value="' + citation + '"]',
       )
       if (cInput) cInput.checked = true
+      const depth = clampDepth(result.maxDepth)
+      const dInput = document.querySelector(
+        'input[name="maxDepth"][value="' + depth + '"]',
+      )
+      if (dInput) dInput.checked = true
     },
   )
 }
@@ -33,7 +46,9 @@ function saveSettings() {
   })
   const cChecked = document.querySelector('input[name="citation"]:checked')
   const appendCitation = cChecked ? cChecked.value === 'on' : true
-  chrome.storage.sync.set({ positions, appendCitation }, () => {
+  const dChecked = document.querySelector('input[name="maxDepth"]:checked')
+  const maxDepth = dChecked ? clampDepth(dChecked.value) : 3
+  chrome.storage.sync.set({ positions, appendCitation, maxDepth }, () => {
     const status = document.getElementById('status')
     if (!status) return
     status.classList.add('visible')

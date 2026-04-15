@@ -31,16 +31,25 @@
     fjud: 'left',
   }
   let userAppendCitation = true
+  // 耳標展開到第幾層（user-facing 深度，1-6）。內部 level 是 0-5，使用者
+  // 看到的深度 = 內部 level + 1：
+  //   1 = 主文/壹                2 = +一/二              3 = +(一)/㈠ (預設)
+  //   4 = +1./⒈/１．             5 = +(1)/⑴/（１）       6 = +①/②/③
+  // 預設停在 3 = 三層大綱，多數判決閱讀已足夠。
+  let userMaxDepth = 3
   const positionsReady = new Promise((resolve) => {
     try {
       chrome.storage.sync.get(
-        { positions: userPositions, appendCitation: true },
+        { positions: userPositions, appendCitation: true, maxDepth: 3 },
         (result) => {
           if (result && result.positions) {
             userPositions = Object.assign({}, userPositions, result.positions)
           }
           if (result && typeof result.appendCitation === 'boolean') {
             userAppendCitation = result.appendCitation
+          }
+          if (result && typeof result.maxDepth === 'number') {
+            userMaxDepth = clampDepth(result.maxDepth)
           }
           resolve()
         },
@@ -66,6 +75,10 @@
         // Copy handler reads userAppendCitation lazily on each event,
         // so the new value applies immediately to the next copy.
       }
+      if (changes.maxDepth) {
+        userMaxDepth = clampDepth(changes.maxDepth.newValue)
+        needsRerender = true
+      }
       if (needsRerender) {
         sidebarBuilt = false
         removeExistingSidebar()
@@ -73,6 +86,14 @@
       }
     })
   } catch (_) {}
+
+  function clampDepth(value) {
+    const n = Number(value)
+    if (!Number.isFinite(n)) return 3
+    if (n < 1) return 1
+    if (n > 6) return 6
+    return Math.floor(n)
+  }
 
   // ----- Host document resolution -----
   //
@@ -96,14 +117,29 @@
   // ----- Hierarchy detection (ported from frontend/src/utils/judgmentFormatter.js) -----
   const CHINESE_UPPER_NUM = '[壹貳參肆伍陸柒捌玖拾甲乙丙丁戊己庚辛壬癸]'
   const CHINESE_NUM = '[一二三四五六七八九十百零〇]'
+  // 阿拉伯數字：半形 0-9 + 全形 ０-９（U+FF10-FF19），兩者一律當同一層
+  const ARABIC_NUM = '[\\d\\uff10-\\uff19]'
+  // 句點/逗點分隔符：半形 . ,、全形 ． ，、CJK 、 。 全部列入
+  const NUM_SEP = '[、，。．,.]'
 
-  // Only levels 0-2 show up in the outline (callers filter level > 2),
-  // so we only declare patterns for those three levels.
+  // 台灣判決常見的完整 6 層階層：
+  //   壹 → 一 → (一)/㈠ → 1./⒈ → (1)/⑴ → ①
+  // Pass A 在候選位置（句尾標點後 / 行首）用這些 pattern 抓 level。
+  // 呼叫端目前用 `level > 5` 過濾（見下方 startCandidates 迴圈）。
   const HIERARCHY_PATTERNS = [
-    { level: 0, pattern: new RegExp('^' + CHINESE_UPPER_NUM + '+\\s*[、.,．]') },
-    { level: 1, pattern: new RegExp('^' + CHINESE_NUM + '+\\s*[、.,．]') },
+    { level: 0, pattern: new RegExp('^' + CHINESE_UPPER_NUM + '+\\s*' + NUM_SEP) },
+    { level: 1, pattern: new RegExp('^' + CHINESE_NUM + '+\\s*' + NUM_SEP) },
     { level: 2, pattern: /^[\u3220-\u3229]/ },
     { level: 2, pattern: new RegExp('^[（(]\\s*' + CHINESE_NUM + '+\\s*[）)]') },
+    // level 3: 1. / 1、 / １． / １、 / ⒈⒉⒊...（U+2488-249B）
+    //          全形與半形阿拉伯數字一律算第 3 層
+    { level: 3, pattern: new RegExp('^' + ARABIC_NUM + '+\\s*' + NUM_SEP) },
+    { level: 3, pattern: /^[\u2488-\u249B]/ },
+    // level 4: (1) / （1） / （１） / ⑴⑵⑶...（U+2474-2487）
+    { level: 4, pattern: new RegExp('^[（(]\\s*' + ARABIC_NUM + '+\\s*[）)]') },
+    { level: 4, pattern: /^[\u2474-\u2487]/ },
+    // level 5: ①②③...（U+2460-2473）
+    { level: 5, pattern: /^[\u2460-\u2473]/ },
   ]
 
   function detectLevel(text) {
@@ -214,6 +250,44 @@
 
     if (!full.trim()) return []
 
+    // --- 引號區段標記表 ---
+    //
+    // 判決常引用法條內容，形如：「按 X 法第 N 條規定：『有下列情形之一者：
+    // 一、... 二、... 三、...』」。這些被引用的 一/二/三 不是本篇判決的大綱，
+    // 不該被抓進耳標。
+    //
+    // 之前的版本用 global running depth（累積 +1/-1）實作，但只要判決中間
+    // 出現任一個沒有匹配 」 的孤立 「（例如截斷段落、原文不對稱、Lawsnote
+    // 自動加標點失誤），depth 就會永遠 > 0，導致**之後整份判決的編號都被誤殺**，
+    // 使用者會看到「長判決後半段大綱全部消失」。
+    //
+    // 改成局部封閉配對：每遇到一個 「（或 『），向後找最近的 」（或 』），
+    // 配對上限 MAX_QUOTE_SPAN 字。配對成功就把中間區間標為「引號內」；找
+    // 不到配對就**忽略這個 「**，當它沒出現過。這樣一個壞引號最多只汙染
+    // 後面 MAX_QUOTE_SPAN 字內的判定，不會擴散到整份判決。
+    const MAX_QUOTE_SPAN = 1500
+    const insideQuote = new Uint8Array(full.length)
+    {
+      let i = 0
+      while (i < full.length) {
+        const ch = full.charAt(i)
+        if (ch === '「' || ch === '『') {
+          const close = ch === '「' ? '」' : '』'
+          const limit = Math.min(full.length, i + MAX_QUOTE_SPAN)
+          let j = -1
+          for (let k = i + 1; k < limit; k++) {
+            if (full.charAt(k) === close) { j = k; break }
+          }
+          if (j !== -1) {
+            for (let k = i + 1; k < j; k++) insideQuote[k] = 1
+            i = j + 1
+            continue
+          }
+        }
+        i++
+      }
+    }
+
     // --- Collect hit positions on the flat string ---
     //
     // 判決段落 section heading：
@@ -256,6 +330,11 @@
       const lineText = lineTextAt(realPos)
       if (!lineText) continue
 
+      // 引號內的 一/二/三（法條引用等）不算大綱，直接 skip。
+      // Section heading 故意繞過這個檢查 —— 因為 "主文" "事實" "理由" 絕對
+      // 不會出現在引號內，這個 check 對它們是 no-op；但 enum 編號就會被濾。
+      if (insideQuote[realPos] && !SECTION_HEADER_RE.test(lineText)) continue
+
       // Section heading (主文/事實/理由) — force short label so the label
       // slicer below doesn't spill into the section's body content when
       // the heading isn't immediately followed by a numbered marker.
@@ -289,14 +368,24 @@
       // 只看前 24 字做 level detection，避免第一行過長時正則掃太久
       const head = full.slice(realPos, realPos + 24)
       const level = detectLevel(head)
-      if (level === null || level > 2) continue
+      if (level === null || level > 5) continue
       pushRaw(realPos, level)
     }
 
-    // Pass B: inline CJK enclosed numerals ㈠-㈩ (任意位置都安全)
+    // Pass B: 任意位置的 enclosed numeral 都可以安全當錨點，因為單一字元本身
+    // 就是明確的編號 marker，不會跟正文衝突。涵蓋四組：
+    //   ㈠-㈩  U+3220-3229  → level 2
+    //   ⒈-⒛  U+2488-249B  → level 3（帶句點的阿拉伯數字）
+    //   ⑴-⒇  U+2474-2487  → level 4（括號內阿拉伯數字）
+    //   ①-⑳  U+2460-2473  → level 5（圓圈阿拉伯數字）
+    // 同樣受引號深度過濾，避免引用條文中的 ⑴ 被誤抓。
     for (let i = 0; i < full.length; i++) {
+      if (insideQuote[i]) continue
       const cp = full.charCodeAt(i)
       if (cp >= 0x3220 && cp <= 0x3229) pushRaw(i, 2)
+      else if (cp >= 0x2488 && cp <= 0x249b) pushRaw(i, 3)
+      else if (cp >= 0x2474 && cp <= 0x2487) pushRaw(i, 4)
+      else if (cp >= 0x2460 && cp <= 0x2473) pushRaw(i, 5)
     }
 
     if (!rawHits.length) return []
@@ -367,6 +456,13 @@
 
   // ----- Sidebar rendering -----
   function renderSidebar(items) {
+    // 套用使用者選的最大展開深度。User-facing 深度 1-6，對應內部 level 0-5
+    // （差 1）。filter 條件：內部 level + 1 <= userMaxDepth，等價於
+    // level < userMaxDepth。anchors 仍保留在 DOM 中（不浪費已經做過的
+    // splitText 工），只是不顯示在耳標清單裡 —— 未來若要做「展開更多」之類
+    // 的互動，可以直接重新 render 不必重新偵測。
+    items = (items || []).filter((it) => (it.level || 0) < userMaxDepth)
+
     // 清掉舊的 sidebar + toast —— 父層 default.aspx 不會隨 iframe 導航重載，
     // 所以上一次注入的 DOM 會殘留，指向已經消失的 iframe anchor。
     const old = hostDoc.getElementById('fint-outline-sidebar')
@@ -389,6 +485,12 @@
     // Per-site position (left / right), user-configurable via options page.
     const position = (userPositions && userPositions[theme]) || 'left'
     aside.dataset.position = position === 'right' ? 'right' : 'left'
+
+    // 根據此次 outline 實際最深 level 動態加寬 card — 淺判決（一/(一) 兩層）
+    // 保持 320px 不佔畫面，複雜判決（1./ (1)/ ①）自動放寬避免 label 被截斷。
+    // CSS 用 [data-depth] attribute selector 對應 width。
+    const maxLevel = items.reduce((m, it) => Math.max(m, it.level || 0), 0)
+    aside.dataset.depth = String(maxLevel)
 
     const tab = hostDoc.createElement('div')
     tab.className = 'fint-outline-tab'

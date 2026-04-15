@@ -109,6 +109,72 @@
       transition: opacity 0.2s, transform 0.2s;
     }
     .status.visible { opacity: 1; transform: translateY(0); }
+    .depth-card {
+      padding: 16px 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+    .depth-card .site-name { margin-bottom: 4px; }
+    .depth-card .site-desc { margin-bottom: 14px; }
+    .depth-options {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .depth-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      background: #ffffff;
+      transition: background 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+    .depth-option:hover {
+      background: #f8fafc;
+      border-color: var(--dim);
+    }
+    .depth-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .depth-option .depth-num {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: #f1f5f9;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 14px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .depth-option .depth-text {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .depth-option:has(input:checked) {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .depth-option:has(input:checked) .depth-num {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    .depth-option:has(input:checked) .depth-text {
+      color: var(--fg);
+      font-weight: 500;
+    }
     .footer {
       margin-top: 40px;
       padding-top: 20px;
@@ -159,6 +225,45 @@
       <div class="radio-group">
         <label><input type="radio" name="fjud" value="left">左側</label>
         <label><input type="radio" name="fjud" value="right">右側</label>
+      </div>
+    </div>
+
+    <div class="section-title">展開深度</div>
+
+    <div class="depth-card">
+      <div class="site-name">耳標展開到第幾層</div>
+      <div class="site-desc">點下方任一列即可選擇。多數判決選 3 即可，需要看更深層的細項時再往下加，或選 1 / 2 取得更精簡的章節導覽。</div>
+      <div class="depth-options">
+        <label class="depth-option">
+          <input type="radio" name="maxDepth" value="1">
+          <span class="depth-num">1</span>
+          <span class="depth-text">主文、事實、理由　/　壹、貳、參</span>
+        </label>
+        <label class="depth-option">
+          <input type="radio" name="maxDepth" value="2">
+          <span class="depth-num">2</span>
+          <span class="depth-text">再加上　一、二、三</span>
+        </label>
+        <label class="depth-option">
+          <input type="radio" name="maxDepth" value="3">
+          <span class="depth-num">3</span>
+          <span class="depth-text">再加上　(一)、(二)　/　㈠、㈡</span>
+        </label>
+        <label class="depth-option">
+          <input type="radio" name="maxDepth" value="4">
+          <span class="depth-num">4</span>
+          <span class="depth-text">再加上　1.、2.　/　⒈、⒉　/　１．、２．</span>
+        </label>
+        <label class="depth-option">
+          <input type="radio" name="maxDepth" value="5">
+          <span class="depth-num">5</span>
+          <span class="depth-text">再加上　(1)、(2)　/　⑴、⑵　/　（１）、（２）</span>
+        </label>
+        <label class="depth-option">
+          <input type="radio" name="maxDepth" value="6">
+          <span class="depth-num">6</span>
+          <span class="depth-text">再加上　①、②、③</span>
+        </label>
       </div>
     </div>
 

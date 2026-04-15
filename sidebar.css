@@ -81,6 +81,18 @@
   pointer-events: none;
 }
 
+/* 動態寬度：判決大綱深度越深，card 越寬，避免 level 3/4/5 的 label 被截斷。
+   data-depth 由 content.js 的 renderSidebar 依 items 最深 level 設定。 */
+#fint-outline-sidebar[data-depth="3"] .fint-outline-card {
+  width: 360px;
+}
+#fint-outline-sidebar[data-depth="4"] .fint-outline-card {
+  width: 400px;
+}
+#fint-outline-sidebar[data-depth="5"] .fint-outline-card {
+  width: 440px;
+}
+
 #fint-outline-sidebar:hover .fint-outline-card,
 #fint-outline-sidebar:focus-within .fint-outline-card {
   opacity: 1;
@@ -142,6 +154,24 @@
   padding-left: 34px;
   font-size: 12px;
   color: #64748b;
+}
+
+#fint-outline-sidebar .fint-outline-level-3 {
+  padding-left: 46px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+#fint-outline-sidebar .fint-outline-level-4 {
+  padding-left: 58px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+#fint-outline-sidebar .fint-outline-level-5 {
+  padding-left: 70px;
+  font-size: 11px;
+  color: #94a3b8;
 }
 
 #fint-copy-toast {
