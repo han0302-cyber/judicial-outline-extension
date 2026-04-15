@@ -5,7 +5,8 @@
 # Output: dist/judicial-outline-extension-<version>.zip
 #
 # The zip contains only the runtime files (manifest.json, content.js,
-# sidebar.css, icons/*.png) — no docs, no git, no source SVG.
+# background.js, sidebar.css, sidepanel.html/css/js, options.html/js,
+# icons/*.png) — no docs, no git, no source SVG.
 
 set -euo pipefail
 
@@ -35,7 +36,11 @@ rm -f "$OUT_FILE"
 zip -r "$OUT_FILE" \
   manifest.json \
   content.js \
+  background.js \
   sidebar.css \
+  sidepanel.html \
+  sidepanel.css \
+  sidepanel.js \
   options.html \
   options.js \
   icons/icon16.png \

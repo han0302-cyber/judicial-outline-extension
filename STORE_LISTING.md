@@ -7,10 +7,10 @@
 ## Short description（≤132 字元）
 
 ### 繁體中文
-> 在司法院裁判書頁面加上左側「判決架構」導覽，並在複製文字時自動移除分行、附上裁判字號。
+> 裁判書頁面加上「判決架構」導覽、智慧複製（去分行、附字號），並提供瀏覽器側邊欄「判決剪貼簿」跨分頁保存並匯出複製過的段落。
 
 ### English
-> Adds a "Judgment Outline" sidebar to Taiwan judicial ruling pages, plus smart copy that strips line breaks and appends the citation.
+> Judgment outline sidebar, smart copy (strip line breaks + append citation), and a browser side panel clipboard to save and export copied passages across tabs.
 
 ---
 
@@ -24,7 +24,9 @@
 
 - ✂️ **智慧複製**：選取任何一段判決文字後複製，自動移除換行與 CJK 字元間的 padding 空白，並於尾端附上「（<裁判字號>意旨參照）」，方便直接貼進書狀或筆記。ASCII 英數字之間的空格（如 "NT 300"）會被保留。
 
-- 🎨 **自動主題配色**：在法令判解系統 (legal.judicial.gov.tw) 顯示 muted teal，在裁判書系統 (judgment.judicial.gov.tw) 顯示綠色，與原網站主視覺融合。
+- 📋 **判決剪貼簿側邊欄**：每次複製自動把「去分行 + 附字號」的完整文字推進 Chrome 原生側邊欄，卡片顯示來源（裁判書 / 判解函釋）、可點擊字號連回原始判決、複製時間、完整內文；切到 Google Docs、Word Online、Obsidian 等任何分頁都能逐一再複製貼上。支援字體四段縮放、完全去重、匯出 `.txt` 或 `.md`（Obsidian 適用）。**資料僅保留在當次瀏覽期間**，關閉瀏覽器自動清空，不寫入硬碟、不上傳雲端。
+
+- 🎨 **自動主題配色**：使用司法院官方色票——判解函釋 `#336666` / 裁判書 `#336633`，與原網站主視覺一致。
 
 **支援頁面**
 
@@ -52,7 +54,9 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 - ✂️ **Smart copy**: Select any judgment text and copy it — line breaks and padding whitespace between CJK characters are stripped automatically, and the citation suffix `（<case-number>意旨參照）` is appended. Spaces between ASCII alphanumerics (like "NT 300") are preserved.
 
-- 🎨 **Auto theme**: Muted teal on legal.judicial.gov.tw (FINT), green on judgment.judicial.gov.tw (FJUD), matching each site's branding.
+- 📋 **Clipboard side panel**: Every copy is also saved as a card in Chrome's native side panel. Each card shows the source system, the clickable case number (opens the original ruling in a new tab), timestamp, and full text. Switch to Google Docs, Word Online, Obsidian Web, etc. and paste copies one by one from the panel. Supports four-step font scaling, exact-match de-duplication, and export to `.txt` or `.md` (Obsidian-friendly format). **Data lives only in the current browser session** (Chrome's in-memory `chrome.storage.session`) and is cleared the moment you close the browser — nothing is written to disk or uploaded.
+
+- 🎨 **Auto theme**: Official Judicial Yuan palette — dark teal `#336666` for FINT, dark green `#336633` for FJUD.
 
 **Supported pages**
 
@@ -73,10 +77,30 @@ https://github.com/han0302-cyber/judicial-outline-extension
 ### Host permission: `legal.judicial.gov.tw/FINT/*` and `judgment.judicial.gov.tw/FJUD/*`
 
 **Justification（繁中）**：
-擴充功能必須在這兩個網域的裁判書頁面上注入 DOM 元件（判決架構導覽側欄）以及攔截複製事件（移除換行、附上裁判字號）。功能完全限定於這兩個網域，不會存取其他網站。
+擴充功能必須在這兩個網域的裁判書頁面上注入 DOM 元件（判決架構導覽側欄）以及攔截複製事件（移除換行、附上裁判字號、紀錄到判決剪貼簿側邊欄）。功能完全限定於這兩個網域，不會存取其他網站。
 
 **Justification (English)**:
-The extension needs to inject DOM elements (the outline sidebar) and intercept the copy event (line-break stripping + citation suffix) on ruling pages hosted at these two domains. All functionality is strictly limited to these hosts; no other websites are accessed.
+The extension needs to inject DOM elements (the outline sidebar) and intercept the copy event (line-break stripping, citation suffix, and logging to the clipboard side panel) on ruling pages hosted at these two domains. All functionality is strictly limited to these hosts; no other websites are accessed.
+
+### `storage` permission
+
+**Justification（繁中）**：
+- `chrome.storage.sync` 儲存使用者設定（複製附字號開關、耳標位置、展開深度），跨裝置同步需要此權限
+- `chrome.storage.session` 儲存判決剪貼簿側邊欄的卡片紀錄；此 namespace 為記憶體暫存，關瀏覽器即清空，不寫入硬碟也不同步
+- `chrome.storage.local` 儲存側邊欄字體大小偏好（單一數字）
+
+**Justification (English)**:
+- `chrome.storage.sync` stores user preferences (citation toggle, sidebar position, expand depth) with cross-device sync.
+- `chrome.storage.session` holds the clipboard side panel cards; this namespace is in-memory only, wiped when the browser closes, never written to disk, never synced.
+- `chrome.storage.local` stores a single font-size preference for the side panel.
+
+### `sidePanel` permission
+
+**Justification（繁中）**：
+用於提供「判決剪貼簿」瀏覽器原生側邊欄 UI，讓使用者切換分頁時仍可看到當次複製紀錄並再貼到外部編輯器（如 Google Docs、Obsidian）。
+
+**Justification (English)**:
+Required to provide the native browser side panel UI for the clipboard feature, so users can view and re-paste the current session's copies while working in any tab (Google Docs, Obsidian, etc.).
 
 ---
 

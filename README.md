@@ -1,6 +1,6 @@
 # 司法院裁判書閱讀助手
 
-在瀏覽司法院法學資料檢索系統時，自動在頁面左側注入「判決架構」導覽卡片，讓長篇判決的結構一目瞭然；並在複製文字時自動移除換行、附上裁判字號。
+在瀏覽司法院法學資料檢索系統時，自動在頁面左側注入「判決架構」導覽卡片，讓長篇判決的結構一目瞭然；複製文字時自動移除換行、附上裁判字號；並提供瀏覽器側邊欄「判決剪貼簿」，以卡片形式保存當次瀏覽期間複製過的段落，方便跨分頁貼到 Word、Google Docs、Obsidian 等外部編輯器。
 
 ---
 
@@ -50,12 +50,21 @@
    - 尾端自動附上 `（<裁判字號>意旨參照）` —— 字號從頁面「裁判字號：」欄位擷取，可在設定頁一鍵關閉
    - Windows / macOS 共用同一套 copy handler
 
-3. **自動主題配色**
-   - `legal.judicial.gov.tw` (FINT / 法令判解系統) → muted teal 主色
-   - `judgment.judicial.gov.tw` (FJUD / 裁判書系統) → 綠色主色
+3. **判決剪貼簿側邊欄（瀏覽器側邊欄）**
+   - 每次 Cmd+C / Ctrl+C 複製後，自動把「去分行 + 附字號」的完整文字推進瀏覽器原生側邊欄（Chrome Side Panel），以卡片形式保存當次瀏覽期間的所有判決段落
+   - 側邊欄由點擊 toolbar 的擴充功能圖示開啟，**不限於裁判書頁面**——切到 Google Docs、Word Online、Obsidian Web、Notion 等任何分頁都看得到同一份卡片清單，點卡片上的「複製」鈕即可貼上
+   - 卡片含來源標籤（裁判書 / 判解函釋）、裁判字號（可點擊在新分頁開啟原始判決頁面）、複製時間、完整內文；色系依來源系統自動切換，使用司法院官方色票 `#336633` / `#336666`
+   - 完全重複的內容自動去重、並 toast 提示「已複製過相同內容」
+   - 字體大小可四段調整（小 / 中 / 大 / 特大），標籤與字號隨內文一起縮放，偏好跨 session 保留
+   - 支援匯出成 `.txt` 純文字或 `.md` Markdown 檔（專為 Obsidian 設計的 blockquote 格式）
+   - **僅保留當次瀏覽器開啟期間的紀錄**：資料只存在 `chrome.storage.session`（記憶體），關閉瀏覽器後自動清空；不寫入硬碟、不同步、不傳送任何外部服務
+
+4. **自動主題配色**
+   - `legal.judicial.gov.tw` (FINT / 法令判解系統) → 深青主色 `#336666`
+   - `judgment.judicial.gov.tw` (FJUD / 裁判書系統) → 深綠主色 `#336633`
    - 每次 iframe 導航自動清理舊側欄、重新建構
 
-4. **使用者設定（後台選項頁面）**
+5. **使用者設定（後台選項頁面）**
    - 任意時間可調整、立即套用、跨裝置同步（透過 `chrome.storage.sync`）
    - 詳見下方「⚙️ 設定」段
 
@@ -141,7 +150,8 @@
 
 ## 🔐 技術細節
 
-- Manifest V3，純 content script，無 background / service worker
+- Manifest V3，核心 content script + 輕量 service worker（僅設定 side panel 行為與 `chrome.storage.session` 存取層級）
+- 判決剪貼簿側邊欄透過 Chrome `sidePanel` API 實作；資料存在 `chrome.storage.session`（記憶體、關瀏覽器即清空），字體大小偏好存 `chrome.storage.local`
 - 使用 `TreeWalker` 扁平化 `#jud` / `#plCJData` 等正文容器的文字節點，維護每個 text node 在扁平字串中的偏移表
 - 在扁平字串上執行三 pass 偵測（物理行首 / 句尾後 inline / CJK enclosed）後，用 `splitText` 在正確的 text node 插入隱形 `<span id>` anchor，不動到原排版
 - 側欄 DOM 掛到 `window.top.document`，讓 `position: fixed` 以最外層 viewport 為基準（解決 FJUD 把內容塞進 iframe 時 fixed 被當成 absolute 的問題）
@@ -152,9 +162,11 @@
 
 | 檔案 / 資料夾 | 用途 |
 |---|---|
-| `manifest.json` | Chrome Extension MV3 manifest，宣告 match patterns、icons、permissions、content script 路徑、options page |
-| `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler、讀取使用者偏好 |
-| `sidebar.css` | 側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables、左右側位置 |
+| `manifest.json` | Chrome Extension MV3 manifest，宣告 match patterns、icons、permissions、content script 路徑、options page、side panel、service worker |
+| `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler、讀取使用者偏好、複製時推送紀錄到剪貼簿側邊欄 |
+| `background.js` | Service worker：設定 side panel 開啟行為，並開放 `chrome.storage.session` 給 content script 存取 |
+| `sidebar.css` | 頁內「判決架構」側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables、左右側位置 |
+| `sidepanel.html` / `sidepanel.css` / `sidepanel.js` | 瀏覽器原生側邊欄「判決剪貼簿」的 UI、樣式與邏輯（卡片列表、字體縮放、匯出 .txt/.md、複製回剪貼簿） |
 | `options.html` | 後台設定頁面（擴充功能選項）—— 複製設定 + 耳標位置 |
 | `options.js` | 設定頁面的讀寫邏輯，使用 `chrome.storage.sync` |
 | `icons/` | 擴充功能圖示（16 / 32 / 48 / 128 PNG）與原稿 SVG |

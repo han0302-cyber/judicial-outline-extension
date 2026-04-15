@@ -627,6 +627,128 @@
     return t.trim()
   }
 
+  // ----- Clipboard history (session-only, lives in chrome.storage.session) -----
+  const CLIP_HISTORY_KEY = 'clipHistory'
+
+  // Resolve the real permalink URL + source tag for a clipboard entry.
+  //
+  // FJUD/FINT load the actual judgment detail inside a same-origin iframe
+  // (data.aspx?ty=...&id=...). The outer shell (default.aspx / qryresult.aspx)
+  // is just a host — window.top.location.href on the outer shell is useless
+  // as a permalink.
+  //
+  // Strategy, in priority order:
+  //   1. #txtUrl (分享網址 dialog input) in the *current* document — this is
+  //      the canonical share URL the site itself blesses. If populated, use it.
+  //   2. Current frame's own location.href — if it already points at a detail
+  //      page (not default.aspx), it is the real URL. Because content.js runs
+  //      with all_frames: true, the copy handler inside the judgment iframe
+  //      sees the iframe's own URL here.
+  //   3. Walk into same-origin child iframes looking for one whose URL is a
+  //      detail page. Covers the edge case where the copy event bubbled up to
+  //      the shell frame instead of the content iframe.
+  //   4. Last resort: location.href even if it is default.aspx.
+  function isShellUrl(u) {
+    return /\/default\.aspx/i.test(u) || /\/qryresult\.aspx/i.test(u)
+  }
+
+  function findShareUrlInDoc(doc) {
+    try {
+      const el = doc.getElementById('txtUrl')
+      if (el && typeof el.value === 'string' && /^https?:/i.test(el.value)) {
+        return el.value
+      }
+    } catch (_) {}
+    return ''
+  }
+
+  function findDetailUrlInFrames(doc) {
+    try {
+      const frames = doc.querySelectorAll('iframe')
+      for (const f of frames) {
+        let childDoc = null
+        try {
+          childDoc = f.contentDocument
+        } catch (_) {
+          continue
+        }
+        if (!childDoc) continue
+        // Prefer the share URL on the inner document if present.
+        const share = findShareUrlInDoc(childDoc)
+        if (share) return share
+        const loc = childDoc.location && childDoc.location.href
+        if (loc && !isShellUrl(loc)) return loc
+        // Recurse one level deeper.
+        const nested = findDetailUrlInFrames(childDoc)
+        if (nested) return nested
+      }
+    } catch (_) {}
+    return ''
+  }
+
+  function resolveSource() {
+    let url = ''
+
+    // 1. Share URL in current document.
+    const share = findShareUrlInDoc(document)
+    if (share) url = share
+
+    // 2. Current frame URL if it is not the shell.
+    if (!url) {
+      const here = location.href
+      if (!isShellUrl(here)) url = here
+    }
+
+    // 3. Walk into child iframes for a detail URL.
+    if (!url) {
+      const nested = findDetailUrlInFrames(document)
+      if (nested) url = nested
+    }
+
+    // 4. Last resort: whatever the current frame has.
+    if (!url) url = location.href
+
+    // Source detection: prefer the top-frame hostname (identifies the system
+    // even if the copy fires from an inner iframe). Top is same-origin in both
+    // FJUD and FINT, so window.top.location.hostname is readable.
+    let source = 'fjud'
+    let host = ''
+    try {
+      host = window.top.location.hostname
+    } catch (_) {
+      host = location.hostname
+    }
+    if (host.indexOf('legal.judicial.gov.tw') !== -1) source = 'fint'
+    return { url, source }
+  }
+
+  function pushClipHistory(text, caseLabel) {
+    if (!chrome?.storage?.session) return Promise.resolve('unsupported')
+    const { url, source } = resolveSource()
+    return chrome.storage.session
+      .get({ [CLIP_HISTORY_KEY]: [] })
+      .then(({ [CLIP_HISTORY_KEY]: list }) => {
+        const existingIdx = list.findIndex((it) => it.text === text)
+        if (existingIdx !== -1) {
+          return 'duplicate'
+        }
+        const entry = {
+          id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+          text,
+          caseLabel: caseLabel || '',
+          sourceUrl: url,
+          source,
+          createdAt: Date.now(),
+        }
+        const next = [entry, ...list]
+        return chrome.storage.session.set({ [CLIP_HISTORY_KEY]: next }).then(() => 'added')
+      })
+      .catch((err) => {
+        console.warn('[judicial-outline] pushClipHistory failed', err)
+        return 'error'
+      })
+  }
+
   // ----- Copy handler -----
   function installCopyHandler() {
     document.addEventListener(
@@ -644,7 +766,13 @@
           if (e.clipboardData) {
             e.clipboardData.setData('text/plain', finalText)
             e.preventDefault()
-            showToast(suffix ? '已複製純文字（附字號）' : '已複製純文字')
+            pushClipHistory(finalText, caseLabel).then((result) => {
+              if (result === 'duplicate') {
+                showToast('已複製過相同內容')
+              } else {
+                showToast(suffix ? '已複製純文字（附字號）' : '已複製純文字')
+              }
+            })
           }
         } catch (_) {
           // If override fails, let the native copy proceed.

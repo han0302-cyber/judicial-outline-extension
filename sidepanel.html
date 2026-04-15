@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>判決剪貼簿</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="sp-header">
+      <div class="sp-header-row">
+        <h1 class="sp-title">判決剪貼簿</h1>
+        <div class="sp-header-actions">
+          <button id="sp-export-txt" class="sp-btn sp-btn-ghost" type="button" title="匯出為純文字 .txt">
+            .txt
+          </button>
+          <button id="sp-export-md" class="sp-btn sp-btn-ghost" type="button" title="匯出為 Markdown .md（Obsidian 適用）">
+            .md
+          </button>
+          <button id="sp-clear" class="sp-btn sp-btn-ghost" type="button">全部清空</button>
+        </div>
+      </div>
+      <p class="sp-subtitle">
+        僅保留本次瀏覽器開啟期間複製的裁判文字，關閉瀏覽器後自動清空。
+      </p>
+      <div class="sp-header-tools">
+        <span class="sp-fs-label">字體大小</span>
+        <div class="sp-fs-group" role="group" aria-label="字體大小調整">
+          <button
+            id="sp-fs-minus"
+            class="sp-fs-btn is-minus"
+            type="button"
+            aria-label="縮小字體"
+            title="縮小字體"
+          >
+            A−
+          </button>
+          <button
+            id="sp-fs-plus"
+            class="sp-fs-btn is-plus"
+            type="button"
+            aria-label="放大字體"
+            title="放大字體"
+          >
+            A+
+          </button>
+        </div>
+      </div>
+    </header>
+    <main id="sp-list" class="sp-list" aria-live="polite"></main>
+    <div id="sp-empty" class="sp-empty" hidden>
+      <p>目前沒有紀錄。</p>
+      <p class="sp-empty-hint">
+        前往司法院法學資料檢索系統，選取文字後 <kbd id="sp-kbd-mod">⌘</kbd>+<kbd>C</kbd> 即可加入。
+      </p>
+    </div>
+    <div id="sp-toast" class="sp-toast" role="status" aria-live="polite"></div>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
