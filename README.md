@@ -1,6 +1,6 @@
 # 司法院裁判書閱讀助手
 
-在瀏覽司法院法學資料檢索系統與裁判書系統時，自動在頁面左側注入「判決架構」導覽卡片，讓長篇判決的結構一目瞭然；並在複製文字時自動移除換行、附上裁判字號。
+在瀏覽司法院法學資料檢索系統時，自動在頁面左側注入「判決架構」導覽卡片，讓長篇判決的結構一目瞭然；並在複製文字時自動移除換行、附上裁判字號。
 
 ---
 
@@ -14,9 +14,11 @@
 
 ### 🔵 Safari on macOS → 下載 ZIP
 
-👉 **[點此直接下載 judicial-outline-helper-0.1.5.zip](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest/download/judicial-outline-helper-0.1.5.zip)**
+👉 **[點此直接下載 judicial-outline-helper-0.1.2.zip](https://github.com/han0302-cyber/judicial-outline-extension/releases/download/v0.1.2/judicial-outline-helper-0.1.2.zip)**
 
-（或到 [Releases 頁面](https://github.com/han0302-cyber/judicial-outline-extension/releases/latest) 挑選其他版本）
+（或到 [Releases 頁面](https://github.com/han0302-cyber/judicial-outline-extension/releases) 挑選其他版本）
+
+> ℹ️ **Safari 版維持在 0.1.2**：0.1.3 以後加入的「事實及理由」偵測、後台設定頁等功能在 Safari Web Extension 上有相容性問題尚待修復，因此 Safari 下載暫時鎖定在 0.1.2,以確保耳標能正常出現。需要新功能或自訂設定請改用 Chrome / Edge 版本。
 
 1. 下載後雙擊 ZIP 解壓縮，得到 `司法院裁判書閱讀助手.app`
 2. 把 `.app` 拖到 **Applications** 資料夾
@@ -46,7 +48,7 @@
    - Windows / macOS 共用同一套 copy handler
 
 3. **自動主題配色**
-   - `legal.judicial.gov.tw` (FINT / 法學資料檢索系統) → muted teal 主色
+   - `legal.judicial.gov.tw` (FINT / 法令判解系統) → muted teal 主色
    - `judgment.judicial.gov.tw` (FJUD / 裁判書系統) → 綠色主色
    - 每次 iframe 導航自動清理舊側欄、重新建構
 
@@ -66,7 +68,7 @@
 | 區塊 | 設定項 | 說明 | 預設 |
 |---|---|---|---|
 | **複製設定** | 複製時自動附上裁判字號 | 開啟時，選取文字複製後尾端追加「（XX意旨參照）」；關閉時只移除分行不附字號 | 開 |
-| **耳標位置** | 法學資料檢索系統（FINT）左 / 右 | 「判決架構」直條耳標停靠在頁面左側或右側 | 左 |
+| **耳標位置** | 法令判解系統（FINT）左 / 右 | 「判決架構」直條耳標停靠在頁面左側或右側 | 左 |
 | **耳標位置** | 裁判書系統（FJUD）左 / 右 | 同上，每個網站獨立設定 | 左 |
 
 所有設定**變更後立即套用**，已開啟的判決頁不需 reload —— 側欄會在 1 秒內自動切到新位置、複製功能也會立即遵循新規則。設定透過 `chrome.storage.sync` 儲存，登入同一個 Google 帳號的其他 Chrome 裝置會自動同步。
@@ -75,8 +77,9 @@
 
 | 網站 | URL pattern | 說明 |
 |---|---|---|
-| 司法院法學資料檢索系統 | `https://legal.judicial.gov.tw/FINT/*` | 含 default.aspx 內嵌 iframe |
+| 司法院法令判解系統 | `https://legal.judicial.gov.tw/FINT/*` | 含 default.aspx 內嵌 iframe |
 | 司法院裁判書系統 | `https://judgment.judicial.gov.tw/FJUD/*` | 含 default.aspx 內嵌 iframe |
+| 司法院內網裁判書系統 | `https://judgment.law.intraj/FJUD/*` | 內網版本，套用與 FJUD 相同的綠色主題與設定 |
 
 搜尋結果列表頁不會注入側欄 (`#jud` 為 `<table>` 時自動豁免)。
 

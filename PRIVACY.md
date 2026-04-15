@@ -15,7 +15,7 @@
 ### 擴充功能的行為
 
 1. **僅在下列網域運作**：
-   - `https://legal.judicial.gov.tw/FINT/*`（司法院法學資料檢索系統）
+   - `https://legal.judicial.gov.tw/FINT/*`（司法院法令判解系統）
    - `https://judgment.judicial.gov.tw/FJUD/*`（司法院裁判書系統）
 
    其他任何網站完全不會載入此擴充功能的程式碼。
@@ -28,7 +28,7 @@
 
 | Permission / Host | 為什麼需要 |
 |---|---|
-| `host: legal.judicial.gov.tw/FINT/*` | 在法學資料檢索系統的裁判書頁面注入判決架構側欄 |
+| `host: legal.judicial.gov.tw/FINT/*` | 在法令判解系統的裁判書頁面注入判決架構側欄 |
 | `host: judgment.judicial.gov.tw/FJUD/*` | 在裁判書系統的裁判書頁面注入判決架構側欄 |
 
 本擴充功能**沒有**使用 `storage`、`tabs`、`activeTab`、`cookies`、`history`、`bookmarks`、`webRequest`、`identity`、`downloads`、`clipboardWrite` 等任何 API permission。

@@ -24,11 +24,11 @@
 
 - ✂️ **智慧複製**：選取任何一段判決文字後複製，自動移除換行與 CJK 字元間的 padding 空白，並於尾端附上「（<裁判字號>意旨參照）」，方便直接貼進書狀或筆記。ASCII 英數字之間的空格（如 "NT 300"）會被保留。
 
-- 🎨 **自動主題配色**：在法學資料檢索系統 (legal.judicial.gov.tw) 顯示 muted teal，在裁判書系統 (judgment.judicial.gov.tw) 顯示綠色，與原網站主視覺融合。
+- 🎨 **自動主題配色**：在法令判解系統 (legal.judicial.gov.tw) 顯示 muted teal，在裁判書系統 (judgment.judicial.gov.tw) 顯示綠色，與原網站主視覺融合。
 
 **支援頁面**
 
-- 司法院法學資料檢索系統 — `legal.judicial.gov.tw/FINT/*`
+- 司法院法令判解系統 — `legal.judicial.gov.tw/FINT/*`
 - 司法院裁判書系統 — `judgment.judicial.gov.tw/FJUD/*`
 
 搜尋結果列表頁不會顯示側欄，只在實際判決內容頁才作用。

@@ -1,7 +1,7 @@
 // 司法院裁判書閱讀助手 — content script
 //
 // 支援網域：
-//   legal.judicial.gov.tw/FINT/*    (法學資料檢索系統)
+//   legal.judicial.gov.tw/FINT/*    (法令判解系統)
 //   judgment.judicial.gov.tw/FJUD/* (裁判書系統)
 //
 // 三件事：
