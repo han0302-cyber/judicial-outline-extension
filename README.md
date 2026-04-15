@@ -18,7 +18,7 @@
 
 （或到 [Releases 頁面](https://github.com/han0302-cyber/judicial-outline-extension/releases) 挑選其他版本）
 
-> ℹ️ **Safari 版維持在 0.1.2**：0.1.3 以後加入的「事實及理由」偵測、後台設定頁等功能在 Safari Web Extension 上有相容性問題尚待修復，因此 Safari 下載暫時鎖定在 0.1.2,以確保耳標能正常出現。需要新功能或自訂設定請改用 Chrome / Edge 版本。
+> ℹ️ **Safari 版維持在 0.1.2**：0.1.3 以後加入的「事實及理由」偵測、後台設定頁等功能在 Safari Web Extension 上有相容性問題尚待修復，因此 Safari 下載暫時鎖定在 0.1.2，以確保耳標能正常出現。需要新功能或自訂設定請改用 Chrome / Edge 版本。
 
 1. 下載後雙擊 ZIP 解壓縮，得到 `司法院裁判書閱讀助手.app`
 2. 把 `.app` 拖到 **Applications** 資料夾
@@ -94,7 +94,7 @@
 | 司法院裁判書系統 | `https://judgment.judicial.gov.tw/FJUD/*` | 含 default.aspx 內嵌 iframe |
 | 司法院內網裁判書系統 | `https://judgment.law.intraj/FJUD/*` | 內網版本，套用與 FJUD 相同的綠色主題與設定 |
 
-搜尋結果列表頁不會注入側欄 (`#jud` 為 `<table>` 時自動豁免)。
+搜尋結果列表頁不會注入側欄（`#jud` 為 `<table>` 時自動豁免）。
 
 ---
 

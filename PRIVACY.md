@@ -135,7 +135,7 @@
 
 ## 🌐 第三方服務
 
-**零**。本擴充功能的 runtime 程式碼不載入任何第三方 library、不呼叫任何第三方 API、不嵌入任何遠端 script 或 iframe。所有程式碼都在本 repo 內,可完整審計。
+**零**。本擴充功能的 runtime 程式碼不載入任何第三方 library、不呼叫任何第三方 API、不嵌入任何遠端 script 或 iframe。所有程式碼都在本 repo 內，可完整審計。
 
 ---
 
