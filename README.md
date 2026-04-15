@@ -85,43 +85,48 @@
 
 ---
 
-## 🔧 進階：從原始碼載入（開發者）
+## 🟡 從原始碼安裝（內網環境 / 開發者）
 
-若你想自己改程式、或用最新未發布的版本，可以用 Chrome 的開發人員模式載入原始碼。
+若你的環境無法存取 Chrome Web Store（例如司法院內網），或想自己改程式、用最新未發布的版本，可以下載 GitHub 原始碼後以 Chrome / Edge 的「開發人員模式」載入。
 
-<details>
-<summary><b>展開原始碼安裝教學</b></summary>
-
-### 步驟 1 — 下載原始碼（1-A 或 1-B 擇一）
-
-#### 1-A　下載 ZIP（不需 git）
+### 步驟 1 — 下載原始碼 ZIP
 
 1. 開啟 <https://github.com/han0302-cyber/judicial-outline-extension>
 2. 點右上方綠色 **`Code`** 按鈕 → **`Download ZIP`**
-3. 下載後解壓縮到你容易找到的位置，例如 `~/Downloads/judicial-outline-extension-main/`
-4. **重要**：資料夾**不要移動、不要刪除、不要改名**，Chrome 會持續從這個路徑讀取 extension
+3. 下載後雙擊 ZIP 解壓縮，得到 `judicial-outline-extension-main` 資料夾
+4. 把這個資料夾搬到一個你**不會誤刪**的位置（例如 `~/Documents/` 或 `D:\Tools\`）
 
-#### 1-B　git clone（需先裝 git）
+> ⚠️ **重要**：資料夾**不要再移動、刪除或改名**，Chrome 會持續從這個路徑讀取擴充功能，一旦路徑變動就會失效。
 
-```bash
-cd ~/Downloads
-git clone https://github.com/han0302-cyber/judicial-outline-extension.git
-```
+> 進階：若你已安裝 git，也可改用 `git clone https://github.com/han0302-cyber/judicial-outline-extension.git`，後續更新只要 `git pull` 即可。
 
-### 步驟 2 — 在 Chrome 中載入 extension
+### 步驟 2 — 在 Chrome / Edge 載入擴充功能
 
-1. 網址列輸入 `chrome://extensions` 按 Enter
-2. 右上角打開 **「開發人員模式 / Developer mode」**
+1. 網址列輸入 `chrome://extensions`（Edge 為 `edge://extensions`）按 Enter
+2. 打開右上角 **「開發人員模式 / Developer mode」** 開關
 3. 左上角點 **「載入未封裝項目 / Load unpacked」**
-4. 選剛解壓 / clone 的資料夾（裡面要看得到 `manifest.json`）
-5. Extensions 列表出現「司法院裁判書閱讀助手」卡片、開關打開
+4. 選剛解壓的 `judicial-outline-extension-main` 資料夾（裡面要看得到 `manifest.json`）
+5. 列表中出現「司法院裁判書閱讀助手」卡片、開關打開即完成
 
-### 更新
+### 步驟 3 — 測試
 
-- **ZIP 方式**：重新下載新版 ZIP → 刪除舊資料夾 → 解壓到原位 → `chrome://extensions` 點 🔄
-- **git clone 方式**：`git pull` → `chrome://extensions` 點 🔄
+打開任一篇判決頁，例如：
 
-</details>
+- 公開站：<https://judgment.judicial.gov.tw/FJUD/default.aspx>
+- 司法院內網：`https://judgment.law.intraj/FJUD/default.aspx`
+
+頁面左側應出現「判決架構」直條耳標，hover 即展開導覽卡片。
+
+### 之後要更新版本
+
+- **ZIP 方式**：重新下載新版 ZIP → 解壓後**覆蓋**原資料夾（路徑保持一致）→ `chrome://extensions` 卡片點 🔄
+- **git clone 方式**：`git pull` → `chrome://extensions` 卡片點 🔄
+
+### 常見問題
+
+- **`chrome://extensions` 沒有「載入未封裝項目」按鈕** → 右上角的「開發人員模式」開關沒打開
+- **看不到耳標** → 確認你在的是「判決詳情頁」而不是搜尋結果列表；列表頁不會注入側欄
+- **重啟瀏覽器後擴充功能消失** → 表示原始碼資料夾被移動或刪除，需重新「載入未封裝項目」指向正確路徑
 
 ---
 
