@@ -85,9 +85,9 @@
 
 ---
 
-## 🟡 從原始碼安裝（內網環境 / 開發者）
+## 🟡 從原始碼安裝（開發者）
 
-若你的環境無法存取 Chrome Web Store（例如司法院內網），或想自己改程式、用最新未發布的版本，可以下載 GitHub 原始碼後以 Chrome / Edge 的「開發人員模式」載入。
+若你的環境無法存取 Chrome Web Store，或想自己改程式、用最新未發布的版本，可以下載 GitHub 原始碼後以 Chrome / Edge 的「開發人員模式」載入。
 
 ### 步驟 1 — 下載原始碼 ZIP
 
@@ -110,12 +110,7 @@
 
 ### 步驟 3 — 測試
 
-打開任一篇判決頁，例如：
-
-- 公開站：<https://judgment.judicial.gov.tw/FJUD/default.aspx>
-- 司法院內網：`https://judgment.law.intraj/FJUD/default.aspx`
-
-頁面左側應出現「判決架構」直條耳標，hover 即展開導覽卡片。
+打開任一篇判決頁，例如 <https://judgment.judicial.gov.tw/FJUD/default.aspx>，頁面左側應出現「判決架構」直條耳標，hover 即展開導覽卡片。
 
 ### 之後要更新版本
 
