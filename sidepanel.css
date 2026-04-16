@@ -245,6 +245,21 @@ body {
   background: var(--surface-hover);
 }
 
+/* ----- Drag & drop reordering ----- */
+.sp-card[draggable="true"] {
+  cursor: grab;
+}
+
+.sp-card.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.sp-card.is-drag-over {
+  border-top: 2px solid var(--accent);
+  margin-top: -1px;
+}
+
 .sp-card-head {
   display: flex;
   align-items: center;

@@ -167,11 +167,76 @@
   }
 
   // ----- Card rendering -----
+  // ----- Drag & drop state -----
+  let draggedId = null
+
+  async function reorderEntry(fromId, beforeId) {
+    const list = await getHistory()
+    const fromIdx = list.findIndex((it) => it.id === fromId)
+    if (fromIdx === -1) return
+    const [moved] = list.splice(fromIdx, 1)
+    if (!beforeId) {
+      list.push(moved)
+    } else {
+      const toIdx = list.findIndex((it) => it.id === beforeId)
+      if (toIdx === -1) {
+        list.push(moved)
+      } else {
+        list.splice(toIdx, 0, moved)
+      }
+    }
+    saveInFlight = true
+    await setHistory(list)
+    saveInFlight = false
+    render()
+  }
+
   function renderCard(entry) {
     const card = document.createElement('article')
     card.className = 'sp-card'
     card.dataset.id = entry.id
     card.dataset.source = entry.source || 'fjud'
+
+    // Drag & drop — disable when filtering to avoid confusing index mismatches
+    const isDragEnabled = !currentQuery && !activeTagFilter
+    card.draggable = isDragEnabled
+
+    card.addEventListener('dragstart', (e) => {
+      // Don't hijack drag from inputs/textareas/buttons
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'A') {
+        e.preventDefault()
+        return
+      }
+      draggedId = entry.id
+      card.classList.add('is-dragging')
+      e.dataTransfer.effectAllowed = 'move'
+    })
+    card.addEventListener('dragend', () => {
+      draggedId = null
+      card.classList.remove('is-dragging')
+      listEl.querySelectorAll('.is-drag-over').forEach((el) => el.classList.remove('is-drag-over'))
+    })
+    card.addEventListener('dragover', (e) => {
+      if (!draggedId || draggedId === entry.id) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      // Clear all other drag-over highlights
+      listEl.querySelectorAll('.is-drag-over').forEach((el) => {
+        if (el !== card) el.classList.remove('is-drag-over')
+      })
+      card.classList.add('is-drag-over')
+    })
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('is-drag-over')
+    })
+    card.addEventListener('drop', (e) => {
+      e.preventDefault()
+      card.classList.remove('is-drag-over')
+      if (!draggedId || draggedId === entry.id) return
+      reorderEntry(draggedId, entry.id)
+      draggedId = null
+    })
 
     const head = document.createElement('div')
     head.className = 'sp-card-head'
