@@ -234,7 +234,9 @@ body {
   --card-border: var(--theme-fint-border);
 }
 
-.sp-card[data-source='intraj'] {
+.sp-card[data-source='intraj'],
+.sp-card[data-source='intraj_fint'],
+.sp-card[data-source='intraj_fjud'] {
   --card-primary: var(--theme-intraj-primary);
   --card-primary-dark: var(--theme-intraj-primary-dark);
   --card-soft: var(--theme-intraj-soft);
@@ -386,6 +388,22 @@ a.sp-card-label:hover {
 
 .sp-btn-danger:hover {
   background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+.sp-btn-jump {
+  color: var(--card-primary, var(--accent));
+  border-color: var(--card-border, var(--border));
+}
+
+.sp-btn-jump:hover {
+  background: var(--card-soft, var(--surface-hover));
+  color: var(--card-primary-dark, var(--accent));
+}
+
+.sp-btn-jump:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .sp-btn-ghost {

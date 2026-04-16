@@ -206,3 +206,11 @@
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* 側邊欄「前往」定位到的段落高亮樣式。content.js 以 CSS Highlight API
+ * 註冊為 'fint-jump'，持續顯示至下次「前往」覆蓋。色調採鵝黃以保證在三
+ * 種來源主題色下皆具備對比；文字色保留 inherit 以免干擾頁面原排版。 */
+::highlight(fint-jump) {
+  background-color: rgba(255, 213, 79, 0.55);
+  color: inherit;
+}

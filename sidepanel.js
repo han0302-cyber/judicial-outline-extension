@@ -18,7 +18,9 @@
   const SOURCE_LABELS = {
     fjud: '裁判書',
     fint: '判解函釋',
-    intraj: '內網',
+    intraj_fint: '內網判解函釋',
+    intraj_fjud: '內網裁判書',
+    intraj: '內網', // 相容舊版資料欄位
   }
 
   // Platform-aware modifier key hint: ⌘ on macOS, Ctrl elsewhere.
@@ -63,6 +65,187 @@
     const preview = entry.text.slice(0, 40) + (entry.text.length > 40 ? '…' : '')
     if (!window.confirm(`確定要刪除這張卡片嗎？\n\n「${preview}」`)) return
     await setHistory(list.filter((it) => it.id !== id))
+  }
+
+  // 將卡片對應的分頁切到前景，並請 content script 捲動 + 高亮至原文段落。
+  // 若對應分頁已關閉或已導航至他處，則開新分頁並在 onUpdated complete 後
+  // 送出定位訊息。
+  async function jumpToEntry(id, btn) {
+    const list = await getHistory()
+    const entry = list.find((it) => it.id === id)
+    if (!entry) return
+    if (!entry.sourceUrl) {
+      showToast('此卡片沒有原始網址，無法前往')
+      return
+    }
+
+    const msg = {
+      action: 'jumpToText',
+      rawText: entry.rawText || '',
+      text: entry.text || '',
+      caseLabel: entry.caseLabel || '',
+      anchorIdStart: entry.anchorIdStart || '',
+      anchorIdEnd: entry.anchorIdEnd || '',
+    }
+
+    // 目標分頁的解析策略（由精確到寬鬆）：
+    //   1. 錨點廣播：對每個司法院分頁送 hasAnchor，命中即代表該分頁仍停留
+    //      在複製當下的頁面（錨點尚在 DOM），直接切過去以錨點定位。
+    //   2. URL 比對：pageUrl（top frame） / sourceUrl（iframe detail） /
+    //      同 host + id query 參數。改用 URL 物件做本地比對，避免
+    //      chrome.tabs.query({ url }) match pattern 的解析限制。
+    //   3. 皆不命中才開新分頁。
+    const judicialHostRe = /(legal\.judicial\.gov\.tw|judgment\.judicial\.gov\.tw|legal\.law\.intraj|judgment\.law\.intraj)/
+    const normalizeUrl = (u) => {
+      if (!u) return ''
+      try {
+        const x = new URL(u)
+        return x.origin + x.pathname + x.search
+      } catch (_) {
+        return u
+      }
+    }
+    const pickBest = (tabs) => tabs.find((t) => t.active) || tabs[0]
+
+    let allTabs = []
+    try { allTabs = await chrome.tabs.query({}) } catch (_) {}
+
+    let candidateTabs = []
+
+    // 1. 錨點廣播 — 優先查目前 active 分頁（最常見情境的快路徑），再掃其他
+    if (entry.anchorIdStart) {
+      const ordered = [...allTabs].sort(
+        (a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0),
+      )
+      for (const t of ordered) {
+        if (!t.url || !judicialHostRe.test(t.url)) continue
+        try {
+          const res = await chrome.tabs.sendMessage(t.id, {
+            action: 'hasAnchor',
+            anchorIdStart: entry.anchorIdStart,
+          })
+          if (res && res.ok) {
+            candidateTabs = [t]
+            break
+          }
+        } catch (_) {
+          // 分頁沒有 content script（可能被關閉、或非判決頁面）
+        }
+      }
+    }
+
+    // 2. URL fallback — 錨點全部不在才走這裡（頁面可能被重載／SPA 整塊重繪）
+    if (!candidateTabs.length) {
+      const wantPage = normalizeUrl(entry.pageUrl)
+      const wantSource = normalizeUrl(entry.sourceUrl)
+      if (wantPage) {
+        const matches = allTabs.filter((t) => normalizeUrl(t.url) === wantPage)
+        if (matches.length) candidateTabs = [pickBest(matches)]
+      }
+      if (!candidateTabs.length && wantSource) {
+        const matches = allTabs.filter((t) => normalizeUrl(t.url) === wantSource)
+        if (matches.length) candidateTabs = [pickBest(matches)]
+      }
+      if (!candidateTabs.length && entry.sourceUrl) {
+        try {
+          const src = new URL(entry.sourceUrl)
+          const id2 = src.searchParams.get('id')
+          if (id2) {
+            const matches = allTabs.filter((t) => {
+              if (!t.url) return false
+              try {
+                const tu = new URL(t.url)
+                return tu.hostname === src.hostname && tu.searchParams.get('id') === id2
+              } catch (_) {
+                return false
+              }
+            })
+            if (matches.length) candidateTabs = [pickBest(matches)]
+          }
+        } catch (_) {}
+      }
+    }
+
+    const orig = btn.textContent
+    const restore = () => {
+      btn.textContent = orig
+      btn.disabled = false
+    }
+
+    // 開新分頁並於載入完成後送出 jumpToText。適用於：(a) 找不到已開分頁；
+    // (b) 找到分頁但 jumpToText 回傳 ok: false（例如 FJUD 外殼未變但 iframe
+    // 已導航至其他判決）。
+    const openNewTabAndJump = async () => {
+      if (!entry.sourceUrl) {
+        showToast('此卡片沒有原始網址，無法前往')
+        restore()
+        return
+      }
+      btn.textContent = '開啟中…'
+      btn.disabled = true
+      let newTab
+      try {
+        newTab = await chrome.tabs.create({ url: entry.sourceUrl, active: true })
+      } catch (err) {
+        console.warn('[judicial-outline] open tab failed', err)
+        showToast('無法開啟原始網址')
+        restore()
+        return
+      }
+      showToast('已開啟原文分頁，載入後自動前往')
+
+      const onUpdated = (tabId, info) => {
+        if (tabId !== newTab.id || info.status !== 'complete') return
+        chrome.tabs.onUpdated.removeListener(onUpdated)
+        setTimeout(async () => {
+          try {
+            const res = await chrome.tabs.sendMessage(newTab.id, msg)
+            if (!(res && res.ok)) {
+              showToast('新分頁已載入，但找不到對應段落')
+            }
+          } catch (_) {
+            // iframe 可能尚未完成初始化 — 不再提示
+          } finally {
+            restore()
+          }
+        }, 1200)
+      }
+      chrome.tabs.onUpdated.addListener(onUpdated)
+      // 安全保險：10 秒後仍未 complete 就還原按鈕狀態
+      setTimeout(() => {
+        try { chrome.tabs.onUpdated.removeListener(onUpdated) } catch (_) {}
+        if (btn.disabled) restore()
+      }, 10000)
+    }
+
+    if (candidateTabs.length) {
+      const target = candidateTabs[0]
+      btn.textContent = '前往中…'
+      btn.disabled = true
+      let jumpOk = false
+      try {
+        await chrome.tabs.update(target.id, { active: true })
+        if (typeof target.windowId === 'number') {
+          try { await chrome.windows.update(target.windowId, { focused: true }) } catch (_) {}
+        }
+        const res = await chrome.tabs.sendMessage(target.id, msg)
+        if (res && res.ok) jumpOk = true
+      } catch (err) {
+        console.warn('[judicial-outline] jumpToText on existing tab failed', err)
+      }
+      if (jumpOk) {
+        showToast('已前往原文段落')
+        setTimeout(restore, 900)
+        return
+      }
+      // 分頁存在但段落已無從定位（iframe 已導航 / SPA 重繪 / 頁面更換）。
+      // 改開新分頁重新載入原文。
+      await openNewTabAndJump()
+      return
+    }
+
+    // 連已開分頁都沒有 — 直接開新分頁
+    await openNewTabAndJump()
   }
 
   async function copyEntry(id, btn) {
@@ -428,6 +611,16 @@
     copyBtn.textContent = '複製'
     copyBtn.addEventListener('click', () => copyEntry(entry.id, copyBtn))
 
+    const jumpBtn = document.createElement('button')
+    jumpBtn.type = 'button'
+    jumpBtn.className = 'sp-btn sp-btn-jump'
+    jumpBtn.textContent = '前往'
+    jumpBtn.title = entry.sourceUrl
+      ? '切換至原文分頁並滾動到該段落'
+      : '此卡片無原始網址'
+    if (!entry.sourceUrl) jumpBtn.disabled = true
+    jumpBtn.addEventListener('click', () => jumpToEntry(entry.id, jumpBtn))
+
     const delBtn = document.createElement('button')
     delBtn.type = 'button'
     delBtn.className = 'sp-btn sp-btn-danger'
@@ -453,6 +646,7 @@
     })
 
     actions.appendChild(copyBtn)
+    actions.appendChild(jumpBtn)
     actions.appendChild(delBtn)
     actions.appendChild(memoBtn)
     actions.appendChild(expandBtn)

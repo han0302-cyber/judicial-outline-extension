@@ -101,11 +101,11 @@
 
   // ----- Host document resolution -----
   //
-  // FJUD 將判決內容放在 iframe；iframe 的高度會撐到內容高度，因此在 iframe
-  // 內用 position:fixed 等同 position:absolute（黏在 iframe 左上角，不會跟
-  // 捲動）。解法：把側欄 DOM 掛到同源的 top document，讓 fixed 以最外層
-  // viewport 為基準。點擊跳轉仍靠 iframe 內的 anchor element，scrollIntoView
-  // 會自動往上冒泡到 parent 的捲軸。
+  // FJUD 將判決內容置於 iframe 中，iframe 的高度會隨內容撐開，導致 iframe
+  // 內部的 position:fixed 實際表現如同 position:absolute（黏在 iframe 左上
+  // 角且不隨捲動）。解法：將側欄 DOM 掛到同源的 top document，使 fixed 以
+  // 最外層 viewport 為基準；節點定位仍透過 iframe 內的 anchor element，
+  // scrollIntoView 會自動上溯至父層捲軸。
   function resolveHostDoc() {
     try {
       const top = window.top
@@ -209,7 +209,7 @@
   //
   // 為什麼用扁平字串？
   //   司法院的「判決易讀小幫手」會把專有名詞包進 <a>，使一個段落被拆成多個
-  //   text node（例：「㈠關於 / <a>本件法律問題</a> / 即…」）。若逐 text node
+  //   text node（例：「㈠關於 / <a>某專有名詞</a> / 即…」）。若逐 text node
   //   處理，label 會被截斷、跨 text node 的 inline 標記會漏掉。先扁平化再
   //   偵測，就能跨 <a> 抓到完整的段落標題。
   //
@@ -256,19 +256,14 @@
 
     // --- 引號區段標記表 ---
     //
-    // 判決常引用法條內容，形如：「按 X 法第 N 條規定：『有下列情形之一者：
-    // 一、... 二、... 三、...』」。這些被引用的 一/二/三 不是本篇判決的大綱，
-    // 不該被抓進耳標。
+    // 判決常引用法條，形如：「按 X 法第 N 條規定：『有下列情形之一者：
+    // 一、... 二、... 三、...』」。引號內的 一/二/三 不屬於本篇大綱，須從
+    // 編號偵測中排除。
     //
-    // 之前的版本用 global running depth（累積 +1/-1）實作，但只要判決中間
-    // 出現任一個沒有匹配 」 的孤立 「（例如截斷段落、原文不對稱、Lawsnote
-    // 自動加標點失誤），depth 就會永遠 > 0，導致**之後整份判決的編號都被誤殺**，
-    // 使用者會看到「長判決後半段大綱全部消失」。
-    //
-    // 改成局部封閉配對：每遇到一個 「（或 『），向後找最近的 」（或 』），
-    // 配對上限 MAX_QUOTE_SPAN 字。配對成功就把中間區間標為「引號內」；找
-    // 不到配對就**忽略這個 「**，當它沒出現過。這樣一個壞引號最多只汙染
-    // 後面 MAX_QUOTE_SPAN 字內的判定，不會擴散到整份判決。
+    // 採局部封閉配對：遇到 「（或 『）後，向後在 MAX_QUOTE_SPAN 字範圍內找
+    // 相對應的 」（或 』）。配對成功則將中間區間標記為「引號內」；配對失敗
+    // 則忽略該開引號。不使用累積 depth 計數，避免孤立引號造成後續全段落被
+    // 誤判。
     const MAX_QUOTE_SPAN = 1500
     const insideQuote = new Uint8Array(full.length)
     {
@@ -316,8 +311,8 @@
     }
 
     // Pass A: line-start-ish candidates. 候選位置 = 0 與任何 START_CONTEXT_RE
-    // 字元之後的下一個非空白位置。這讓我們可以抓到 "。八、李文娟" 這類
-    // 同段內用句號分界的下一個標記，而不是只在物理 \n 後才觸發。
+    // 字元之後的下一個非空白位置。此設計可涵蓋「。八、……」這類同段內
+    // 以句號分界的編號，不僅限於物理 \n 之後。
     const startCandidates = []
     if (full.length > 0) startCandidates.push(0)
     for (let i = 1; i < full.length; i++) {
@@ -460,15 +455,13 @@
 
   // ----- Sidebar rendering -----
   function renderSidebar(items) {
-    // 套用使用者選的最大展開深度。User-facing 深度 1-6，對應內部 level 0-5
-    // （差 1）。filter 條件：內部 level + 1 <= userMaxDepth，等價於
-    // level < userMaxDepth。anchors 仍保留在 DOM 中（不浪費已經做過的
-    // splitText 工），只是不顯示在耳標清單裡 —— 未來若要做「展開更多」之類
-    // 的互動，可以直接重新 render 不必重新偵測。
+    // 依使用者設定套用最大展開深度。User-facing 深度 1–6 對應內部 level
+    // 0–5，filter 條件等價於 level < userMaxDepth。被過濾掉的 anchor 仍
+    // 保留於 DOM，以便日後展開不需重新偵測。
     items = (items || []).filter((it) => (it.level || 0) < userMaxDepth)
 
-    // 清掉舊的 sidebar + toast —— 父層 default.aspx 不會隨 iframe 導航重載，
-    // 所以上一次注入的 DOM 會殘留，指向已經消失的 iframe anchor。
+    // 清掉既有的 sidebar + toast：父層 default.aspx 不會隨 iframe 導航重載，
+    // 殘留的 DOM 會指向已失效的 iframe anchor。
     const old = hostDoc.getElementById('fint-outline-sidebar')
     if (old) old.remove()
     const oldToast = hostDoc.getElementById('fint-copy-toast')
@@ -751,31 +744,60 @@
     // FJUD and FINT, so window.top.location.hostname is readable.
     let source = 'fjud'
     let host = ''
+    let pageUrl = ''
     try {
       host = window.top.location.hostname
+      pageUrl = window.top.location.href
     } catch (_) {
       host = location.hostname
+      pageUrl = location.href
     }
     if (host.indexOf('legal.judicial.gov.tw') !== -1) source = 'fint'
-    else if (host.indexOf('.law.intraj') !== -1) source = 'intraj'
-    return { url, source }
+    else if (host.indexOf('legal.law.intraj') !== -1) source = 'intraj_fint'
+    else if (host.indexOf('judgment.law.intraj') !== -1) source = 'intraj_fjud'
+    // url       = iframe 內的 detail 永久連結（開新分頁用最穩）
+    // pageUrl   = top frame 的網址列 URL（tab.url 比對用，FJUD 幾乎都是外殼
+    //             default.aspx，和 url 可能不同）
+    return { url, pageUrl, source }
   }
 
-  function pushClipHistory(text, caseLabel) {
+  function pushClipHistory(text, caseLabel, rawText, anchorIdStart, anchorIdEnd) {
     if (!chrome?.storage?.session) return Promise.resolve('unsupported')
-    const { url, source } = resolveSource()
+    const { url, pageUrl, source } = resolveSource()
     return chrome.storage.session
       .get({ [CLIP_HISTORY_KEY]: [] })
       .then(({ [CLIP_HISTORY_KEY]: list }) => {
         const existingIdx = list.findIndex((it) => it.text === text)
         if (existingIdx !== -1) {
-          return 'duplicate'
+          // 相同文字重複複製時，僅更新既有 entry 的錨點 id 與來源 URL，
+          // 使「前往」對應到最新插入 DOM 的那組錨點。保留 id / createdAt /
+          // 順序不動，避免 sidepanel 卡片排序被擾動。
+          const existing = list[existingIdx]
+          existing.anchorIdStart = anchorIdStart || existing.anchorIdStart || ''
+          existing.anchorIdEnd = anchorIdEnd || existing.anchorIdEnd || ''
+          existing.pageUrl = pageUrl || existing.pageUrl || ''
+          existing.sourceUrl = url || existing.sourceUrl || ''
+          existing.rawText = rawText || existing.rawText || ''
+          return chrome.storage.session
+            .set({ [CLIP_HISTORY_KEY]: list })
+            .then(() => 'duplicate')
         }
         const entry = {
           id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
           text,
+          // rawText 保留 sel.toString() 原貌（含換行、原始空白、無字號後綴），
+          // 作為「前往」定位段落時的精確比對來源；與寫入剪貼簿的 text 分離。
+          rawText: rawText || '',
           caseLabel: caseLabel || '',
           sourceUrl: url,
+          // pageUrl 為 top frame（網址列）URL。FJUD 的 iframe 結構下，
+          // tab.url 等同外殼 URL，與 sourceUrl 指向的 data.aspx 不同；
+          // 「前往」時以 pageUrl 優先比對已開啟分頁。
+          pageUrl: pageUrl || '',
+          // 書籤錨點 id：僅當頁面未重載、DOM 未被 SPA 重繪時有效。
+          // 「前往」優先以錨點定位，命中即代表分頁仍在原頁面且位置未動。
+          anchorIdStart: anchorIdStart || '',
+          anchorIdEnd: anchorIdEnd || '',
           source,
           createdAt: Date.now(),
         }
@@ -789,6 +811,11 @@
   }
 
   // ----- Copy handler -----
+  //
+  // 攔截 copy 事件，將正規化後的文字寫入剪貼簿與 history。同時在選取範圍
+  // 的起、迄位置各插入一個空 <span> 作為書籤錨點，id 一併寫入 entry。
+  // 「前往」時以 getElementById 定位這兩個錨點；只要頁面未重載、DOM 未被
+  // SPA 重繪，即可直接滾動到該段落，無需透過 URL 比對或文字搜尋。
   function installCopyHandler() {
     document.addEventListener(
       'copy',
@@ -798,15 +825,45 @@
         const raw = sel.toString()
         if (!raw.trim()) return
         const clean = cleanCopyText(raw)
-        // 字號永遠擷取（供卡片顯示），但只在使用者開啟設定時才附加到複製文字
+        // 字號一律擷取（供卡片顯示），只有在使用者開啟設定時才附加到剪貼簿文字
         const caseLabel = getCaseLabel()
         const suffix = userAppendCitation && caseLabel ? '（' + caseLabel + '意旨參照）' : ''
         const finalText = clean + suffix
+
+        // 在選取範圍的起、迄位置各插入一個空 <span> 作為書籤錨點。
+        // 插入順序必須先 end 後 start：若先插 start，srcRange 的 endContainer
+        // 可能被 splitText 切開，導致 end offset 失效。
+        let anchorIdStart = ''
+        let anchorIdEnd = ''
+        try {
+          if (sel.rangeCount > 0) {
+            const uid = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7)
+            anchorIdStart = 'fint-clip-' + uid + '-s'
+            anchorIdEnd = 'fint-clip-' + uid + '-e'
+            const srcRange = sel.getRangeAt(0)
+            const endRange = srcRange.cloneRange()
+            endRange.collapse(false)
+            const endEl = document.createElement('span')
+            endEl.id = anchorIdEnd
+            endEl.className = 'fint-clip-anchor'
+            endRange.insertNode(endEl)
+            const startRange = srcRange.cloneRange()
+            startRange.collapse(true)
+            const startEl = document.createElement('span')
+            startEl.id = anchorIdStart
+            startEl.className = 'fint-clip-anchor'
+            startRange.insertNode(startEl)
+          }
+        } catch (_) {
+          anchorIdStart = ''
+          anchorIdEnd = ''
+        }
+
         try {
           if (e.clipboardData) {
             e.clipboardData.setData('text/plain', finalText)
             e.preventDefault()
-            pushClipHistory(finalText, caseLabel).then((result) => {
+            pushClipHistory(finalText, caseLabel, raw, anchorIdStart, anchorIdEnd).then((result) => {
               if (result === 'duplicate') {
                 showToast('已複製過相同內容')
               } else {
@@ -835,15 +892,279 @@
     showToast._timer = setTimeout(() => toast.classList.remove('visible'), 1600)
   }
 
+  // ----- Jump to text paragraph (from sidepanel card click) -----
+  //
+  // 接收 sidepanel 的 jumpToText 訊息，定位段落並滾動 + 高亮。
+  //
+  // 定位策略（由精確到寬鬆）：
+  //   0. anchor id — 複製當下插入 DOM 的兩個 span，最可靠
+  //   A. rawText（sel.toString() 原貌）在 flattened body 做 exact indexOf
+  //   B. rawText 的 \r\n 正規化版本 exact indexOf
+  //   C. text 去除字號後綴後，對 body 套 cleanCopyText 同樣的 normalize，
+  //      建立 clean-index → full-index 映射再 indexOf（供未帶 rawText
+  //      或 anchor 的 entry 使用）
+
+  // scroll + highlight 共用路徑 — anchor 與 text-search 分支皆呼叫此函式
+  function scrollAndHighlightRange(range) {
+    try {
+      const HEADER_OFFSET = 120
+      const inIframe = window !== window.top
+      const rect = range.getBoundingClientRect()
+      if (inIframe) {
+        const topWin = hostDoc.defaultView || window
+        let y = rect.top
+        let w = window
+        while (w !== topWin && w.frameElement) {
+          y += w.frameElement.getBoundingClientRect().top
+          w = w.parent
+        }
+        const desired = topWin.scrollY + y - HEADER_OFFSET
+        topWin.scrollTo({ top: desired, left: topWin.scrollX, behavior: 'smooth' })
+      } else {
+        window.scrollTo({
+          top: window.scrollY + rect.top - HEADER_OFFSET,
+          left: window.scrollX,
+          behavior: 'smooth',
+        })
+      }
+      // Highlight 持續顯示，下次「前往」以相同 'fint-jump' key 覆寫既有 Highlight。
+      if (typeof Highlight !== 'undefined' && CSS && CSS.highlights) {
+        const hl = new Highlight(range)
+        CSS.highlights.set('fint-jump', hl)
+      } else {
+        const sel = window.getSelection()
+        if (sel) {
+          sel.removeAllRanges()
+          sel.addRange(range)
+        }
+      }
+      return true
+    } catch (_) {
+      return false
+    }
+  }
+
+  function findAndScrollToText(opts) {
+    const rawText = (opts && typeof opts.rawText === 'string') ? opts.rawText : ''
+    const text = (opts && typeof opts.text === 'string') ? opts.text : ''
+    const caseLabel = (opts && typeof opts.caseLabel === 'string') ? opts.caseLabel : ''
+    const anchorIdStart = (opts && typeof opts.anchorIdStart === 'string') ? opts.anchorIdStart : ''
+    const anchorIdEnd = (opts && typeof opts.anchorIdEnd === 'string') ? opts.anchorIdEnd : ''
+
+    // Strategy 0 — 書籤錨點（最可靠、與 URL 無關）
+    // 分頁若仍在同一次 load 且 DOM 未被 SPA 重繪，兩個 anchor span 就還
+    // 存在，可直接以 getElementById 建 Range。命中即代表分頁仍停留在原
+    // 頁面，可以直接滾動、不須開新分頁。
+    if (anchorIdStart && anchorIdEnd) {
+      const s = document.getElementById(anchorIdStart)
+      const e = document.getElementById(anchorIdEnd)
+      if (s && e) {
+        try {
+          const range = document.createRange()
+          range.setStartAfter(s)
+          range.setEndBefore(e)
+          if (scrollAndHighlightRange(range)) return true
+        } catch (_) {}
+      }
+    }
+
+    const body = findBodyContainer()
+    if (!body) return false
+    if (!rawText && !text) return false
+
+    // --- Flatten body（保留原始字元，含換行／全形空白） ---
+    const BLOCK_TAGS = /^(DIV|P|PRE|LI|UL|OL|TABLE|TR|TD|TH|H[1-6]|SECTION|ARTICLE|BLOCKQUOTE)$/i
+    const segments = []
+    let full = ''
+    const ensureNewline = () => { if (full && !full.endsWith('\n')) full += '\n' }
+    const walk = (el) => {
+      for (const child of el.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const v = child.nodeValue || ''
+          if (!v) continue
+          segments.push({ node: child, start: full.length, end: full.length + v.length })
+          full += v
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const tag = child.tagName
+          if (tag === 'BR') { ensureNewline(); continue }
+          if (tag === 'SCRIPT' || tag === 'STYLE') continue
+          const isBlock = BLOCK_TAGS.test(tag)
+          if (isBlock) ensureNewline()
+          walk(child)
+          if (isBlock) ensureNewline()
+        }
+      }
+    }
+    walk(body)
+    if (!full) return false
+
+    // Strategy A/B: rawText exact match
+    let fullStart = -1
+    let matchLen = 0
+    if (rawText) {
+      let idx = full.indexOf(rawText)
+      if (idx !== -1) {
+        fullStart = idx
+        matchLen = rawText.length
+      } else {
+        const norm = rawText.replace(/\r\n/g, '\n')
+        idx = full.indexOf(norm)
+        if (idx !== -1) {
+          fullStart = idx
+          matchLen = norm.length
+        }
+      }
+    }
+
+    // Strategy C: cleaned-text fallback via normalize + clean-index map
+    if (fullStart === -1 && text) {
+      let needle = text
+      if (caseLabel) {
+        const suffix = '（' + caseLabel + '意旨參照）'
+        if (needle.endsWith(suffix)) needle = needle.slice(0, -suffix.length)
+      }
+      needle = needle.trim()
+      if (needle) {
+        const isWs = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\u00A0' || c === '\u3000' || c === '\f' || c === '\v'
+        const isAlnum = (c) => /[A-Za-z0-9]/.test(c)
+        let clean = ''
+        const cleanToFull = []
+        let p = 0
+        while (p < full.length) {
+          const ch = full.charAt(p)
+          if (isWs(ch)) {
+            let q = p
+            while (q < full.length && isWs(full.charAt(q))) q++
+            const prev = clean.length > 0 ? clean.charAt(clean.length - 1) : ''
+            const next = q < full.length ? full.charAt(q) : ''
+            if (isAlnum(prev) && isAlnum(next)) {
+              clean += ' '
+              cleanToFull.push(p)
+            }
+            p = q
+            continue
+          }
+          clean += ch
+          cleanToFull.push(p)
+          p++
+        }
+        const idx = clean.indexOf(needle)
+        if (idx !== -1) {
+          const lastCleanIdx = Math.min(idx + needle.length - 1, cleanToFull.length - 1)
+          fullStart = cleanToFull[idx]
+          const fullEndInclusive = cleanToFull[lastCleanIdx]
+          matchLen = (fullEndInclusive !== undefined ? fullEndInclusive + 1 : fullStart + 1) - fullStart
+        }
+      }
+    }
+
+    if (fullStart === -1) return false
+
+    const fullEndInclusive = fullStart + Math.max(1, matchLen) - 1
+    const locate = (pos) => {
+      for (const seg of segments) {
+        if (pos >= seg.start && pos < seg.end) {
+          return { node: seg.node, offset: pos - seg.start }
+        }
+      }
+      return null
+    }
+    const startLoc = locate(fullStart)
+    const endLoc = locate(fullEndInclusive)
+    if (!startLoc) return false
+
+    try {
+      const range = document.createRange()
+      range.setStart(startLoc.node, startLoc.offset)
+      if (endLoc) {
+        const nodeLen = (endLoc.node.nodeValue || '').length
+        range.setEnd(endLoc.node, Math.min(endLoc.offset + 1, nodeLen))
+      } else {
+        const nodeLen = (startLoc.node.nodeValue || '').length
+        range.setEnd(startLoc.node, Math.min(startLoc.offset + 1, nodeLen))
+      }
+      return scrollAndHighlightRange(range)
+    } catch (_) {
+      return false
+    }
+  }
+
+  // 將錨點查詢與定位函式掛到當前 window，供上層 frame 跨 frame 呼叫。
+  // FJUD / FINT 的正文皆在 iframe 中，top frame 需經此入口存取子 frame。
+  try { window.__fintFindAndScroll = findAndScrollToText } catch (_) {}
+  try {
+    window.__fintHasAnchor = (id) => {
+      if (!id) return false
+      try { return !!document.getElementById(id) } catch (_) { return false }
+    }
+  } catch (_) {}
+
+  // 遞迴走整棵 frame tree；每一層同時嘗試兩種路徑：
+  //   (1) 該 frame 已掛載的 __fintHasAnchor / __fintFindAndScroll
+  //   (2) same-origin 直接存取 frames[i].document（作為 content script
+  //       尚未初始化完畢時的備援）
+  function deepHasAnchor(win, id) {
+    if (!id) return false
+    try {
+      if (typeof win.__fintHasAnchor === 'function' && win.__fintHasAnchor(id)) return true
+    } catch (_) {}
+    try {
+      if (win.document && win.document.getElementById(id)) return true
+    } catch (_) {}
+    try {
+      for (let i = 0; i < win.frames.length; i++) {
+        if (deepHasAnchor(win.frames[i], id)) return true
+      }
+    } catch (_) {}
+    return false
+  }
+
+  function deepJumpToText(win, opts) {
+    try {
+      if (typeof win.__fintFindAndScroll === 'function' && win.__fintFindAndScroll(opts)) return true
+    } catch (_) {}
+    try {
+      for (let i = 0; i < win.frames.length; i++) {
+        if (deepJumpToText(win.frames[i], opts)) return true
+      }
+    } catch (_) {}
+    return false
+  }
+
+  try {
+    chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+      if (!msg || typeof msg.action !== 'string') return
+
+      if (msg.action === 'hasAnchor') {
+        const id = typeof msg.anchorIdStart === 'string' ? msg.anchorIdStart : ''
+        // tabs.sendMessage 僅送達 top frame，故從當前 window 起遞迴走整棵
+        // frame tree（含同源子 frame）尋找錨點。
+        const ok = deepHasAnchor(window, id)
+        sendResponse({ ok })
+        return false
+      }
+
+      if (msg.action === 'jumpToText') {
+        const opts = {
+          rawText: typeof msg.rawText === 'string' ? msg.rawText : '',
+          text: typeof msg.text === 'string' ? msg.text : '',
+          caseLabel: typeof msg.caseLabel === 'string' ? msg.caseLabel : '',
+          anchorIdStart: typeof msg.anchorIdStart === 'string' ? msg.anchorIdStart : '',
+          anchorIdEnd: typeof msg.anchorIdEnd === 'string' ? msg.anchorIdEnd : '',
+        }
+        const ok = deepJumpToText(window, opts)
+        sendResponse({ ok })
+        return false
+      }
+    })
+  } catch (_) {}
+
   // ----- Main -----
   //
-  // 判決內容在 FJUD 站是動態載入（default.aspx 下透過 iframe 或 AJAX 注入
-  // data.aspx 內容），所以 document_idle 當下不一定能拿到 `#jud`。Lawsnote
-  // 更是完整 React SPA —— 初次 render 要等 React mount、且點另一筆判決時
-  // URL 改變但不 reload，script 不會自動重跑。策略：
-  //   1. 試著建構側欄；若容器還沒出現，用 MutationObserver 等它出現（15 秒
-  //      後停止觀察，避免在非裁判書頁面長跑）
-  //   2. Hook history.pushState / replaceState / popstate，URL 變動時重跑
+  // FJUD 的判決內容動態載入：default.aspx 經 iframe 或 AJAX 注入 data.aspx，
+  // 因此 document_idle 當下不一定能取得 `#jud`。初始化流程：
+  //   1. 嘗試建構側欄；若容器尚未出現，以 MutationObserver 等待（15 秒後
+  //      自動中止，避免在非判決頁面持續觀察）。
   let sidebarBuilt = false
   let cachedCaseLabel = null
 
@@ -881,9 +1202,8 @@
 
   async function init() {
     try {
-      // 每次 content script 重跑（iframe 導航 / SPA 路由切換）都先清掉上一
-      // 次注入的 sidebar —— 即使本次是列表頁、最後不會重建 sidebar，也能讓
-      // 耳標消失。
+      // content script 每次重跑（iframe 導航等）都先移除既有 sidebar；
+      // 若本次為列表頁而不重建 sidebar，也能確保耳標消失。
       removeExistingSidebar()
       sidebarBuilt = false
       cachedCaseLabel = null

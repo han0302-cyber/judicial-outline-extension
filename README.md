@@ -53,7 +53,8 @@
 3. **判決剪貼簿側邊欄（瀏覽器側邊欄）**
    - 每次 Cmd+C / Ctrl+C 複製後，自動把「去分行 + 附字號」的完整文字推進瀏覽器原生側邊欄（Chrome Side Panel），以卡片形式保存當次瀏覽期間的所有判決段落
    - 側邊欄由點擊 toolbar 的擴充功能圖示開啟，**不限於裁判書頁面**——切到 Google Docs、Word Online、Obsidian Web、Notion 等任何分頁都看得到同一份卡片清單，點卡片上的「複製」鈕即可貼上
-   - 卡片含來源標籤（裁判書 / 判解函釋 / 內網）、裁判字號（可點擊在新分頁開啟原始判決頁面）、複製時間、完整內文；色系依來源系統自動切換，使用司法院官方色票 `#336633` / `#336666` / `#006699`
+   - 卡片含來源標籤（裁判書 / 判解函釋 / 內網判解函釋 / 內網裁判書）、裁判字號（可點擊在新分頁開啟原始判決頁面）、複製時間、完整內文；色系依來源系統自動切換，使用司法院官方色票 `#336633` / `#336666` / `#006699`
+   - **前往原文段落**：每張卡片的「前往」按鈕會直接跳回該段落在原始判決頁面的位置，滾動到段落處並以黃色高亮標示。複製當下會在選取文字的起迄位置插入隱形錨點，前往時用 DOM 直接定位，不依賴 URL 比對；原分頁還開著就切換過去，若已關或導航到其他判決則自動開新分頁載入原文再跳轉
    - **#標籤**：每張卡片可加入自訂 #標籤，以彩色膠囊樣式顯示在卡片上，顏色跟隨來源主題；搜尋列下方自動彙整所有標籤，點擊即可快速篩選
    - **備註**：每張卡片可撰寫自由文字備註，儲存後直接顯示在卡片上；點擊備註預覽可再次編輯
    - **關鍵字搜尋**：側邊欄頂端搜尋列可即時篩選卡片內文、字號、備註或 #標籤
@@ -164,6 +165,7 @@
 - 在扁平字串上執行三 pass 偵測（物理行首 / 句尾後 inline / CJK enclosed）後，用 `splitText` 在正確的 text node 插入隱形 `<span id>` anchor，不動到原排版
 - 側欄 DOM 掛到 `window.top.document`，讓 `position: fixed` 以最外層 viewport 為基準（解決 FJUD 把內容塞進 iframe 時 fixed 被當成 absolute 的問題）
 - 點擊跳轉時沿 frame chain 計算 target 在 top viewport 的絕對 Y，一次 `scrollTo` 扣除 header offset，避免 `scrollIntoView` + delayed `scrollBy` 的動畫競爭
+- 「前往」功能以書籤錨點為主軸：複製當下於選取範圍起、迄各插入一個空 `<span id>`，id 一併寫入卡片；側邊欄以 `chrome.tabs.sendMessage` 對所有司法院網域分頁廣播 `hasAnchor`，命中的分頁即為原頁面，切過去後以 `Range.setStartAfter/EndBefore` 建出區段並用 CSS Highlight API 上色。錨點不在則退回 `pageUrl` / `sourceUrl` 比對與 `rawText` 精確文字搜尋兩層 fallback
 - Safari 版由 `xcrun safari-web-extension-converter` 從同一份 Chrome 原始碼生成 Xcode project，編譯成 Safari Web Extension
 
 ## 專案結構

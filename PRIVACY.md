@@ -130,8 +130,9 @@
 | `host: judgment.law.intraj/FJUD/*` | 同上，供司法院內網裁判書系統使用 |
 | `storage` | 儲存使用者設定（sync）、判決剪貼簿卡片（session 記憶體）、字體大小偏好（local）——全部為本機儲存，無任何遠端傳輸 |
 | `sidePanel` | 提供「判決剪貼簿」瀏覽器原生側邊欄 UI，讓使用者跨分頁檢視與再複製當次紀錄 |
+| `tabs` | 供「前往」功能使用：查詢目前已開啟分頁的 URL，判斷原始判決頁是否仍然開啟以決定要切換現有分頁或開新分頁。**僅讀取上表列出的司法院網域 URL**，不存取分頁內容、不記錄瀏覽歷史、不發送任何網路請求 |
 
-**未使用**的敏感 API（明確聲明）：`tabs`、`activeTab`、`cookies`、`history`、`bookmarks`、`webRequest`、`webRequestBlocking`、`declarativeNetRequest`、`identity`、`downloads`、`clipboardRead`、`scripting`、`nativeMessaging`、`management`、`geolocation`、`notifications`。
+**未使用**的敏感 API（明確聲明）：`activeTab`、`cookies`、`history`、`bookmarks`、`webRequest`、`webRequestBlocking`、`declarativeNetRequest`、`identity`、`downloads`、`clipboardRead`、`scripting`、`nativeMessaging`、`management`、`geolocation`、`notifications`。
 
 ---
 
@@ -165,6 +166,7 @@
 
 ## 📝 本政策的變更紀錄
 
+- **2026-04-17（v0.2.3）**：判決剪貼簿卡片新增「前往」按鈕與書籤錨點定位；新增 `tabs` 權限（用於跨分頁比對與切換，不發送任何網路請求、不上傳任何資料）
 - **2026-04-16（v0.2.2）**：內網 pattern 修正為 `judgment.law.intraj/FJUD/*` + `legal.law.intraj/FINT/*`，新增內網判解函釋支援
 - **2026-04-16（v0.2.1）**：新增內網裁判書系統支援，更新 host permission 說明
 - **2026-04-15（v0.2.0）**：新增判決剪貼簿側邊欄、Side Panel API、`chrome.storage.session`/`local` 說明；擴充 CWS Data Disclosure 對照表；新增合規聲明段落；加上完整「不做的事」清單
