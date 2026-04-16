@@ -67,6 +67,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
   • 判決剪貼簿新增**備註**功能：每張卡片可撰寫自由文字備註，儲存後直接顯示在卡片上
   • 判決剪貼簿新增**關鍵字搜尋列**：即時篩選卡片內文、字號、備註或 #標籤
   • 搜尋列下方自動彙整所有標籤為可點選的 **tag cloud**，一鍵篩選特定主題
+  • 判決剪貼簿支援**拖拉排序**：按住卡片拖曳到目標位置即可重新排列順序
   • 匯出 `.txt` / `.md` 時一併帶出 #標籤與備註
   • 司法院內網專屬配色（海軍藍 `#006699`），與內網頁面背景色融合
   • 後台設定新增內網耳標位置（左/右）獨立設定
@@ -147,6 +148,7 @@ Lawyers, legal staff, law students, and researchers — anyone who needs to read
   • New per-card **memo** notes: free-text annotations saved and displayed directly on cards
   • New **keyword search bar**: real-time filtering by text, case number, memo, or #hashtag
   • Auto-generated **tag cloud** below search bar for one-click topic filtering
+  • **Drag-and-drop reordering**: hold and drag a card to rearrange its position
   • Export `.txt` / `.md` now includes #hashtags and memos
   • Dedicated navy blue theme (`#006699`) for the Judicial Yuan intranet
   • Intranet sidebar position (left / right) now independently configurable
