@@ -30,7 +30,7 @@
         "https://legal.judicial.gov.tw/FINT/*",
         "https://judgment.judicial.gov.tw/FJUD/*",
         "https://judgment.law.intraj/*",
-        "https://legal.law.intraj/FLAW/*"
+        "https://legal.law.intraj/FINT/*"
       ],
       "js": ["content.js"],
       "css": ["sidebar.css"],

@@ -52,7 +52,7 @@
   - 司法院法令判解系統 — `legal.judicial.gov.tw/FINT/*`
   - 司法院裁判書系統 — `judgment.judicial.gov.tw/FJUD/*`
   - 司法院內部網路裁判書系統 — `judgment.law.intraj/*`（限院內網路環境，不限 FJUD/FINT 路徑）
-  - 司法院內部網路法令判解系統 — `legal.law.intraj/FLAW/*`（限院內網路環境）
+  - 司法院內部網路判解函釋 — `legal.law.intraj/FINT/*`（限院內網路環境）
 
 搜尋結果列表頁不會顯示側欄，只在實際判決內容頁才作用。內網版本與外網版本共用同一套邏輯，無需額外安裝。
 
@@ -64,8 +64,8 @@ https://github.com/han0302-cyber/judicial-outline-extension
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
 
 🆕 **v0.2.2 更新**
-  • 新增支援司法院內部網路法令判解系統 (`legal.law.intraj/FLAW/*`)，院內使用 Chrome 亦可在法令判解系統使用判決架構耳標與智慧複製功能
-  • 設定頁「耳標位置」內網選項涵蓋裁判書系統與法令判解系統兩個內網網域
+  • 新增支援司法院內部網路判解函釋 (`legal.law.intraj/FINT/*`)，院內使用 Chrome 亦可在判解函釋使用判決架構耳標與智慧複製功能
+  • 設定頁「耳標位置」內網選項涵蓋裁判書系統與判解函釋兩個內網網域
 
 🆕 **v0.2.1 更新**
   • 判決剪貼簿新增 **#標籤** 功能：每張卡片可加入自訂 #標籤，以彩色膠囊樣式顯示，顏色跟隨來源主題
@@ -138,7 +138,7 @@ Official Judicial Yuan palette — dark teal `#336666` for FINT (judicial interp
   - Taiwan Judicial Yuan Legal Search — `legal.judicial.gov.tw/FINT/*`
   - Taiwan Judicial Yuan Judgments — `judgment.judicial.gov.tw/FJUD/*`
   - Judicial Yuan Intranet Judgments — `judgment.law.intraj/*` (intranet-only, all paths)
-  - Judicial Yuan Intranet Legal Search — `legal.law.intraj/FLAW/*` (intranet-only)
+  - Judicial Yuan Intranet Legal Interpretations — `legal.law.intraj/FINT/*` (intranet-only)
 
 Search result lists are ignored; the outline only appears on actual ruling pages. The intranet build shares the same codebase and needs no extra installation.
 
@@ -150,8 +150,8 @@ https://github.com/han0302-cyber/judicial-outline-extension
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
 
 🆕 **v0.2.2 changes**
-  • Added support for the Judicial Yuan intranet Legal Search system (`legal.law.intraj/FLAW/*`)
-  • Intranet sidebar position setting now covers both judgment and legal search intranet domains
+  • Added support for the Judicial Yuan intranet legal interpretations (`legal.law.intraj/FINT/*`)
+  • Intranet sidebar position setting now covers both judgment and legal interpretation intranet domains
 
 🆕 **v0.2.1 changes**
   • New per-card **#hashtag** support: Obsidian-style colored pills, theme-matched to source system
@@ -195,13 +195,13 @@ Lawyers, legal staff, law students, and researchers — anyone who needs to read
 
 ## Permission justification
 
-### Host permissions: `legal.judicial.gov.tw/FINT/*`, `judgment.judicial.gov.tw/FJUD/*`, `judgment.law.intraj/*`, `legal.law.intraj/FLAW/*`
+### Host permissions: `legal.judicial.gov.tw/FINT/*`, `judgment.judicial.gov.tw/FJUD/*`, `judgment.law.intraj/*`, `legal.law.intraj/FINT/*`
 
 **Justification（繁中）**：
-擴充功能必須在司法院公開網域（FINT 法令判解系統、FJUD 裁判書系統）與司法院內部網路的裁判書及法令判解頁面上注入 DOM 元件（判決架構導覽側欄）以及攔截複製事件（移除換行、附上裁判字號、紀錄到判決剪貼簿側邊欄）。功能完全限定於這四個網域，不會存取其他網站。內網裁判書網域（`judgment.law.intraj`）使用 `/*` 萬用路徑，因為內網同時提供 FJUD 與 FINT 等多個子系統；內網法令判解網域（`legal.law.intraj`）限定於 `/FLAW/*` 路徑。行為與公開網域一致，供院內使用者安裝同一份擴充功能使用。
+擴充功能必須在司法院公開網域（FINT 法令判解系統、FJUD 裁判書系統）與司法院內部網路的裁判書及法令判解頁面上注入 DOM 元件（判決架構導覽側欄）以及攔截複製事件（移除換行、附上裁判字號、紀錄到判決剪貼簿側邊欄）。功能完全限定於這四個網域，不會存取其他網站。內網裁判書網域（`judgment.law.intraj`）使用 `/*` 萬用路徑，因為內網同時提供 FJUD 與 FINT 等多個子系統；內網判解函釋網域（`legal.law.intraj`）限定於 `/FINT/*` 路徑。行為與公開網域一致，供院內使用者安裝同一份擴充功能使用。
 
 **Justification (English)**:
-The extension needs to inject DOM elements (the outline sidebar) and intercept the copy event (line-break stripping, citation suffix, and logging to the clipboard side panel) on ruling pages hosted at the Taiwan Judicial Yuan's public domains (FINT legal interpretations, FJUD rulings) and the Judicial Yuan's internal intranet. All functionality is strictly limited to these four hosts; no other websites are accessed. The intranet judgment host (`judgment.law.intraj`) uses a `/*` wildcard path because the intranet serves multiple subsystems (FJUD, FINT, etc.) under the same domain; the intranet legal search host (`legal.law.intraj`) is scoped to `/FLAW/*`. Both behave identically to the public hosts and let Judicial Yuan staff install the same extension for internal use.
+The extension needs to inject DOM elements (the outline sidebar) and intercept the copy event (line-break stripping, citation suffix, and logging to the clipboard side panel) on ruling pages hosted at the Taiwan Judicial Yuan's public domains (FINT legal interpretations, FJUD rulings) and the Judicial Yuan's internal intranet. All functionality is strictly limited to these four hosts; no other websites are accessed. The intranet judgment host (`judgment.law.intraj`) uses a `/*` wildcard path because the intranet serves multiple subsystems (FJUD, FINT, etc.) under the same domain; the intranet legal interpretations host (`legal.law.intraj`) is scoped to `/FINT/*`. Both behave identically to the public hosts and let Judicial Yuan staff install the same extension for internal use.
 
 ### `storage` permission
 

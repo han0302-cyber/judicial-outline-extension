@@ -4,7 +4,7 @@
 //   legal.judicial.gov.tw/FINT/*    (法令判解系統)
 //   judgment.judicial.gov.tw/FJUD/* (裁判書系統)
 //   judgment.law.intraj/*           (內網裁判書系統)
-//   legal.law.intraj/FLAW/*         (內網法令判解系統)
+//   legal.law.intraj/FINT/*         (內網判解函釋)
 //
 // 三件事：
 //   1. 在左側固定一個「判決架構」卡片（hover tab），掃描正文內容的層級標記
