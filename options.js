@@ -1,8 +1,8 @@
 // Options page script — reads / writes per-site sidebar placement to
 // chrome.storage.sync. Content script listens for changes and re-renders.
 
-const SITES = ['fint', 'fjud', 'intraj']
-const DEFAULTS = { fint: 'left', fjud: 'left', intraj: 'left' }
+const SITES = ['fint', 'fjud', 'intraj_fint', 'intraj_fjud']
+const DEFAULTS = { fint: 'left', fjud: 'left', intraj_fint: 'left', intraj_fjud: 'left' }
 
 function clampDepth(value) {
   const n = Number(value)

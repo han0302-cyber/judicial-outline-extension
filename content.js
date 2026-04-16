@@ -31,7 +31,8 @@
   let userPositions = {
     fint: 'left',
     fjud: 'left',
-    intraj: 'left',
+    intraj_fint: 'left',
+    intraj_fjud: 'left',
   }
   let userAppendCitation = true
   // 耳標展開到第幾層（user-facing 深度，1-6）。內部 level 是 0-5，使用者
@@ -487,7 +488,17 @@
     aside.dataset.theme = theme
 
     // Per-site position (left / right), user-configurable via options page.
-    const position = (userPositions && userPositions[theme]) || 'left'
+    // 內網兩個網域共用 intraj 主題色，但耳標位置可分別設定。
+    let positionKey = theme
+    if (theme === 'intraj') {
+      try {
+        const h = (hostDoc.defaultView || window).location.hostname
+        positionKey = h.indexOf('legal.law.intraj') !== -1 ? 'intraj_fint' : 'intraj_fjud'
+      } catch (_) {
+        positionKey = 'intraj_fjud'
+      }
+    }
+    const position = (userPositions && userPositions[positionKey]) || 'left'
     aside.dataset.position = position === 'right' ? 'right' : 'left'
 
     // 根據此次 outline 實際最深 level 動態加寬 card — 淺判決（一/(一) 兩層）
