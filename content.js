@@ -3,6 +3,8 @@
 // 支援網域：
 //   legal.judicial.gov.tw/FINT/*    (法令判解系統)
 //   judgment.judicial.gov.tw/FJUD/* (裁判書系統)
+//   judgment.law.intraj/*           (內網裁判書系統)
+//   legal.law.intraj/FLAW/*         (內網法令判解系統)
 //
 // 三件事：
 //   1. 在左側固定一個「判決架構」卡片（hover tab），掃描正文內容的層級標記
@@ -480,7 +482,7 @@
     try {
       const host = (hostDoc.defaultView || window).location.hostname
       if (host.indexOf('legal.judicial.gov.tw') !== -1) theme = 'fint'
-      else if (host.indexOf('judgment.law.intraj') !== -1) theme = 'intraj'
+      else if (host.indexOf('.law.intraj') !== -1) theme = 'intraj'
     } catch (_) {}
     aside.dataset.theme = theme
 
@@ -744,7 +746,7 @@
       host = location.hostname
     }
     if (host.indexOf('legal.judicial.gov.tw') !== -1) source = 'fint'
-    else if (host.indexOf('judgment.law.intraj') !== -1) source = 'intraj'
+    else if (host.indexOf('.law.intraj') !== -1) source = 'intraj'
     return { url, source }
   }
 
