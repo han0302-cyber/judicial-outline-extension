@@ -601,7 +601,17 @@
   }
 
   function extractCaseLabel() {
-    // FJUD / FINT：先找 `.row > .col-th=裁判字號`（兩套共通 metadata 結構）
+    // FJUD data.aspx 用 <dt>裁判字號：</dt><dd>…</dd> 語意結構
+    const dts = document.querySelectorAll('dt')
+    for (const dt of dts) {
+      if (!/裁判字號/.test(dt.textContent || '')) continue
+      const dd = dt.nextElementSibling
+      if (dd && dd.tagName === 'DD') {
+        const v = trimCaseLabel(dd.textContent || '')
+        if (v) return v
+      }
+    }
+    // FINT / 部分 FJUD 版面：`.row > .col-th=裁判字號` + `.col-td`
     const rows = document.querySelectorAll('.row')
     for (const row of rows) {
       const th = row.querySelector('.col-th')
@@ -775,8 +785,9 @@
         const raw = sel.toString()
         if (!raw.trim()) return
         const clean = cleanCopyText(raw)
-        const caseLabel = userAppendCitation ? getCaseLabel() : ''
-        const suffix = caseLabel ? '（' + caseLabel + '意旨參照）' : ''
+        // 字號永遠擷取（供卡片顯示），但只在使用者開啟設定時才附加到複製文字
+        const caseLabel = getCaseLabel()
+        const suffix = userAppendCitation && caseLabel ? '（' + caseLabel + '意旨參照）' : ''
         const finalText = clean + suffix
         try {
           if (e.clipboardData) {

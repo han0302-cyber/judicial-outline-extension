@@ -29,7 +29,7 @@
 📋 **判決剪貼簿側邊欄**
 每次 Cmd+C / Ctrl+C 複製後，擴充功能會把「去分行 + 附字號」的完整文字推進 Chrome 瀏覽器原生側邊欄，以卡片形式保存**當次瀏覽期間**的所有判決段落。側邊欄由點擊 toolbar 的擴充功能圖示開啟，**不限於裁判書頁面** —— 切到 Google Docs、Word Online、Obsidian Web、Notion 等任何分頁都看得到同一份卡片清單，點卡片上的「複製」鈕即可貼上，非常適合需要一次引用多段判決文字的書狀撰寫情境。
 
-每張卡片包含來源標籤（裁判書 / 判解函釋 / 內網）、可點擊的裁判字號（在新分頁開啟原始判決頁面）、複製時間戳與完整內文；色系依來源系統自動切換，採用司法院官方色票。完全重複的內容自動去重並提示「已複製過相同內容」。字體大小可四段調整（小／中／大／特大），標籤與字號隨內文一起縮放。支援將全部卡片匯出為 `.txt` 純文字或 `.md` Markdown 檔，`.md` 為 Obsidian 友善的 blockquote 格式，判決字號會做為 H2 小標題、內文為引用區塊，可直接拖進 Obsidian vault 檢視。
+每張卡片包含來源標籤（裁判書 / 判解函釋 / 內網）、可點擊的裁判字號（在新分頁開啟原始判決頁面）、複製時間戳與完整內文；色系依來源系統自動切換，採用司法院官方色票。每張卡片可加入自訂 **#標籤**（Obsidian 風格彩色 pill，顏色跟隨來源主題）及自由文字**備註**，儲存後直接顯示在卡片上。側邊欄頂端提供**關鍵字搜尋列**，可即時篩選卡片內文、字號、備註或 #標籤；搜尋列下方自動彙整所有標籤為可點選的 tag cloud，一鍵篩選特定主題。完全重複的內容自動去重並提示「已複製過相同內容」。字體大小可四段調整（小／中／大／特大），標籤與字號隨內文一起縮放。支援將全部卡片匯出為 `.txt` 純文字或 `.md` Markdown 檔（一併帶出 #標籤與備註），`.md` 為 Obsidian 友善的 blockquote 格式，判決字號會做為 H2 小標題、內文為引用區塊，可直接拖進 Obsidian vault 檢視。
 
 **隱私設計**：剪貼簿紀錄只存在 `chrome.storage.session`（Chrome 原生記憶體暫存區），關閉瀏覽器即自動清空，**不寫入硬碟、不上傳雲端、不跨裝置同步**。即使同時開多個瀏覽器視窗，紀錄在同一個瀏覽器程序內共享、另開瀏覽器則各自獨立。
 
@@ -63,10 +63,17 @@ https://github.com/han0302-cyber/judicial-outline-extension
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
 
 🆕 **v0.2.1 更新**
+  • 判決剪貼簿新增 **#標籤** 功能：每張卡片可加入自訂 hashtag，以 Obsidian 風格彩色 pill 顯示，顏色跟隨來源主題
+  • 判決剪貼簿新增**備註**功能：每張卡片可撰寫自由文字備註，儲存後直接顯示在卡片上
+  • 判決剪貼簿新增**關鍵字搜尋列**：即時篩選卡片內文、字號、備註或 #標籤
+  • 搜尋列下方自動彙整所有標籤為可點選的 **tag cloud**，一鍵篩選特定主題
+  • 匯出 `.txt` / `.md` 時一併帶出 #標籤與備註
   • 司法院內網專屬配色（海軍藍 `#006699`），與內網頁面背景色融合
   • 後台設定新增內網耳標位置（左/右）獨立設定
   • 內網 URL pattern 放寬為 `judgment.law.intraj/*`，不再限於 FJUD 路徑
   • 裁判字號擷取改進：正確截斷「量刑趨勢建議」等頁面附加文字，支援判決、裁定、決定書、判例、裁判書等各類書類字號
+  • 修正 FJUD data.aspx 頁面的 `<dt>`/`<dd>` metadata 結構，字號擷取不再漏抓
+  • 修正「關閉附字號」時卡片不顯示字號標題的問題
 
 🆕 **v0.2.0 更新**
   • 新增「判決剪貼簿」瀏覽器原生側邊欄（Chrome Side Panel API）
@@ -108,7 +115,7 @@ Select any judgment text and copy it — line breaks and padding whitespace betw
 📋 **Clipboard side panel**
 Every Cmd+C / Ctrl+C is also saved as a card in Chrome's native side panel, accumulating **every copy made during the current browser session**. Open the panel from the toolbar icon — it's **not limited to ruling pages**, so you can switch to Google Docs, Word Online, Obsidian Web, Notion, etc. and still see the same card list, clicking each card's "Copy" button to paste one by one. Ideal for brief-writing workflows that cite multiple passages.
 
-Each card shows the source tag (裁判書 / 判解函釋 / intranet), the clickable case number (opens the original ruling in a new tab), a timestamp, and the full text. Theme colors switch automatically by source. Exact duplicates are de-duplicated with a toast notification. Four-step font scaling (small / medium / large / extra-large) scales the tag, label, and body together. Export all cards as `.txt` or `.md` — the `.md` format uses H2 headings for case numbers and blockquotes for judgment text, making it a clean drop-in for Obsidian vaults.
+Each card shows the source tag (裁判書 / 判解函釋 / intranet), the clickable case number (opens the original ruling in a new tab), a timestamp, and the full text. Theme colors switch automatically by source. Each card supports custom **#hashtags** (Obsidian-style colored pills that follow the source theme) and free-text **memos**, both saved and displayed directly on the card. A **keyword search bar** at the top filters cards by text, case number, memo, or #hashtag in real time; below it, an auto-generated **tag cloud** lets you filter by topic with one click. Exact duplicates are de-duplicated with a toast notification. Four-step font scaling (small / medium / large / extra-large) scales the tag, label, and body together. Export all cards as `.txt` or `.md` (including #hashtags and memos) — the `.md` format uses H2 headings for case numbers and blockquotes for judgment text, making it a clean drop-in for Obsidian vaults.
 
 **Privacy by design**: Clipboard history is stored only in `chrome.storage.session` (Chrome's native in-memory storage). It is wiped the moment you close the browser — **never written to disk, never uploaded, never synced across devices**.
 
@@ -136,10 +143,17 @@ https://github.com/han0302-cyber/judicial-outline-extension
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
 
 🆕 **v0.2.1 changes**
-  • Dedicated navy blue theme (`#006699`) for the Judicial Yuan intranet, blending with the intranet page background
-  • Intranet sidebar position (left / right) now independently configurable in the options page
-  • Intranet URL pattern broadened to `judgment.law.intraj/*` (no longer limited to FJUD path)
-  • Case label extraction improved: correctly trims trailing page artifacts (e.g. "量刑趨勢建議"); now supports 判決, 裁定, 決定書, 判例, and 裁判書 document types
+  • New per-card **#hashtag** support: Obsidian-style colored pills, theme-matched to source system
+  • New per-card **memo** notes: free-text annotations saved and displayed directly on cards
+  • New **keyword search bar**: real-time filtering by text, case number, memo, or #hashtag
+  • Auto-generated **tag cloud** below search bar for one-click topic filtering
+  • Export `.txt` / `.md` now includes #hashtags and memos
+  • Dedicated navy blue theme (`#006699`) for the Judicial Yuan intranet
+  • Intranet sidebar position (left / right) now independently configurable
+  • Intranet URL pattern broadened to `judgment.law.intraj/*` (all paths)
+  • Case label extraction improved: correctly trims trailing page artifacts (e.g. "量刑趨勢建議"); supports 判決, 裁定, 決定書, 判例, and 裁判書 document types
+  • Fixed FJUD data.aspx `<dt>`/`<dd>` metadata structure — case label no longer missed
+  • Fixed case label not appearing on cards when "append citation" setting is off
 
 🆕 **v0.2.0 changes**
   • New clipboard side panel backed by Chrome's Side Panel API

@@ -11,10 +11,14 @@
   const toastEl = document.getElementById('sp-toast')
   const fsMinusBtn = document.getElementById('sp-fs-minus')
   const fsPlusBtn = document.getElementById('sp-fs-plus')
+  const searchInput = document.getElementById('sp-search')
+  const searchStatus = document.getElementById('sp-search-status')
+  const tagCloudEl = document.getElementById('sp-tag-cloud')
 
   const SOURCE_LABELS = {
     fjud: '裁判書',
     fint: '判解函釋',
+    intraj: '內網',
   }
 
   // Platform-aware modifier key hint: ⌘ on macOS, Ctrl elsewhere.
@@ -81,6 +85,88 @@
     }
   }
 
+  // ----- Memo & tags persistence -----
+  // Guard: saves trigger storage.onChanged → render(), which would
+  // destroy focused inputs. Skip render when change came from our own save.
+  let saveInFlight = false
+
+  async function saveMemo(id, memo) {
+    const list = await getHistory()
+    const entry = list.find((it) => it.id === id)
+    if (!entry) return
+    entry.memo = memo
+    saveInFlight = true
+    await setHistory(list)
+    saveInFlight = false
+  }
+
+  async function saveTags(id, tags) {
+    const list = await getHistory()
+    const entry = list.find((it) => it.id === id)
+    if (!entry) return
+    entry.tags = tags
+    saveInFlight = true
+    await setHistory(list)
+    saveInFlight = false
+    // Re-render tag cloud since the global set of tags changed.
+    renderTagCloud(list)
+  }
+
+  // ----- Tag cloud -----
+  let activeTagFilter = '' // when set, only show cards that have this tag
+
+  function collectAllTags(list) {
+    const map = new Map() // tag → count
+    for (const entry of list) {
+      if (!entry.tags) continue
+      for (const t of entry.tags) {
+        map.set(t, (map.get(t) || 0) + 1)
+      }
+    }
+    // Sort by count descending, then alphabetically
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  }
+
+  function renderTagCloud(list) {
+    while (tagCloudEl.firstChild) tagCloudEl.removeChild(tagCloudEl.firstChild)
+    const tags = collectAllTags(list)
+    if (tags.length === 0) {
+      tagCloudEl.classList.remove('is-visible')
+      return
+    }
+    tagCloudEl.classList.add('is-visible')
+
+    const label = document.createElement('span')
+    label.className = 'sp-tag-cloud-label'
+    label.textContent = '#標籤'
+    tagCloudEl.appendChild(label)
+
+    for (const [tagName, count] of tags) {
+      const pill = document.createElement('button')
+      pill.type = 'button'
+      pill.className = 'sp-tag-cloud-pill'
+      if (activeTagFilter === tagName) pill.classList.add('is-active')
+      pill.textContent = `#${tagName}`
+      pill.title = `${count} 張卡片`
+      pill.addEventListener('click', () => {
+        if (activeTagFilter === tagName) {
+          // Toggle off
+          activeTagFilter = ''
+          searchInput.value = ''
+          currentQuery = ''
+        } else {
+          activeTagFilter = tagName
+          searchInput.value = ''
+          currentQuery = ''
+        }
+        render()
+      })
+      tagCloudEl.appendChild(pill)
+    }
+  }
+
+  // ----- Card rendering -----
   function renderCard(entry) {
     const card = document.createElement('article')
     card.className = 'sp-card'
@@ -125,6 +211,149 @@
     body.className = 'sp-card-text'
     body.textContent = entry.text
 
+    // ----- Hashtag pills (always visible when tags exist) -----
+    const tagsWrap = document.createElement('div')
+    tagsWrap.className = 'sp-card-tags'
+
+    const entryTags = (entry.tags || []).slice()
+
+    function rebuildTagPills() {
+      while (tagsWrap.firstChild) tagsWrap.removeChild(tagsWrap.firstChild)
+      entryTags.forEach((t, idx) => {
+        const pill = document.createElement('span')
+        pill.className = 'sp-hashtag'
+        pill.textContent = `#${t}`
+
+        const x = document.createElement('span')
+        x.className = 'sp-hashtag-x'
+        x.textContent = '×'
+        x.addEventListener('click', () => {
+          entryTags.splice(idx, 1)
+          rebuildTagPills()
+          saveTags(entry.id, entryTags.slice())
+        })
+        pill.appendChild(x)
+        tagsWrap.appendChild(pill)
+      })
+      tagsWrap.hidden = entryTags.length === 0
+    }
+    rebuildTagPills()
+
+    // ----- Memo preview (always visible when memo exists) -----
+    const memoPreview = document.createElement('div')
+    memoPreview.className = 'sp-card-memo-preview'
+    memoPreview.textContent = entry.memo || ''
+    memoPreview.hidden = !entry.memo
+    memoPreview.title = '點擊可編輯備註'
+
+    // ----- Memo + Tag edit area (hidden, opened by button or preview click) -----
+    const memoEdit = document.createElement('div')
+    memoEdit.className = 'sp-card-memo-edit'
+
+    // Tag input row (inside edit area)
+    const tagAddRow = document.createElement('div')
+    tagAddRow.className = 'sp-tag-add-row'
+
+    const tagInput = document.createElement('input')
+    tagInput.type = 'text'
+    tagInput.className = 'sp-tag-input'
+    tagInput.placeholder = '輸入標籤名稱…'
+
+    function commitTag() {
+      const raw = tagInput.value.replace(/^#/, '').trim()
+      if (!raw) return
+      if (entryTags.includes(raw)) {
+        tagInput.value = ''
+        return
+      }
+      entryTags.push(raw)
+      tagInput.value = ''
+      rebuildTagPills()
+      saveTags(entry.id, entryTags.slice())
+    }
+
+    tagInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) {
+        e.preventDefault()
+        commitTag()
+      }
+    })
+
+    const tagAddBtn = document.createElement('button')
+    tagAddBtn.type = 'button'
+    tagAddBtn.className = 'sp-tag-add-btn'
+    tagAddBtn.textContent = '＋新增標籤'
+    tagAddBtn.addEventListener('click', commitTag)
+
+    tagAddRow.appendChild(tagInput)
+    tagAddRow.appendChild(tagAddBtn)
+
+    // Memo textarea
+    const memoInput = document.createElement('textarea')
+    memoInput.className = 'sp-card-memo-input'
+    memoInput.placeholder = '輸入備註…'
+    memoInput.value = entry.memo || ''
+
+    const memoEditActions = document.createElement('div')
+    memoEditActions.className = 'sp-memo-edit-actions'
+
+    const memoSaveBtn = document.createElement('button')
+    memoSaveBtn.type = 'button'
+    memoSaveBtn.className = 'sp-btn sp-btn-primary'
+    memoSaveBtn.textContent = '儲存'
+    memoSaveBtn.style.fontSize = '11px'
+    memoSaveBtn.style.padding = '4px 12px'
+
+    const memoCancelBtn = document.createElement('button')
+    memoCancelBtn.type = 'button'
+    memoCancelBtn.className = 'sp-btn'
+    memoCancelBtn.textContent = '取消'
+    memoCancelBtn.style.fontSize = '11px'
+    memoCancelBtn.style.padding = '4px 12px'
+
+    function closeMemoEdit() {
+      memoEdit.classList.remove('is-open')
+    }
+
+    function doSaveMemo() {
+      const val = memoInput.value.trim()
+      saveMemo(entry.id, val)
+      memoPreview.textContent = val
+      memoPreview.hidden = !val
+      memoBtn.classList.toggle('has-memo', !!val)
+      memoBtn.textContent = (val || entryTags.length) ? '備註 ✎' : '備註'
+      closeMemoEdit()
+      showToast('備註已儲存')
+    }
+
+    memoSaveBtn.addEventListener('click', doSaveMemo)
+    memoCancelBtn.addEventListener('click', () => {
+      memoInput.value = entry.memo || ''
+      closeMemoEdit()
+    })
+    memoInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        doSaveMemo()
+      }
+    })
+
+    memoEditActions.appendChild(memoCancelBtn)
+    memoEditActions.appendChild(memoSaveBtn)
+
+    memoEdit.appendChild(tagAddRow)
+    memoEdit.appendChild(memoInput)
+    memoEdit.appendChild(memoEditActions)
+
+    function openMemoEdit() {
+      memoInput.value = memoPreview.textContent || ''
+      memoEdit.classList.add('is-open')
+      memoInput.focus()
+    }
+
+    memoPreview.addEventListener('click', openMemoEdit)
+
+    // ----- Actions -----
     const actions = document.createElement('div')
     actions.className = 'sp-card-actions'
 
@@ -140,6 +369,14 @@
     delBtn.textContent = '刪除'
     delBtn.addEventListener('click', () => deleteEntry(entry.id))
 
+    const memoBtn = document.createElement('button')
+    memoBtn.type = 'button'
+    memoBtn.className = 'sp-btn sp-btn-memo'
+    const hasMemoOrTags = entry.memo || entryTags.length
+    memoBtn.textContent = hasMemoOrTags ? '備註 ✎' : '備註'
+    if (hasMemoOrTags) memoBtn.classList.add('has-memo')
+    memoBtn.addEventListener('click', openMemoEdit)
+
     const expandBtn = document.createElement('button')
     expandBtn.type = 'button'
     expandBtn.className = 'sp-btn sp-btn-expand'
@@ -152,10 +389,14 @@
 
     actions.appendChild(copyBtn)
     actions.appendChild(delBtn)
+    actions.appendChild(memoBtn)
     actions.appendChild(expandBtn)
 
     card.appendChild(head)
     card.appendChild(body)
+    card.appendChild(tagsWrap)
+    card.appendChild(memoPreview)
+    card.appendChild(memoEdit)
     card.appendChild(actions)
 
     requestAnimationFrame(() => {
@@ -172,20 +413,75 @@
     while (node.firstChild) node.removeChild(node.firstChild)
   }
 
+  // ----- Search / filter -----
+  let currentQuery = ''
+
+  function matchesQuery(entry, query) {
+    if (!query) return true
+    const q = query.toLowerCase()
+    const fields = [
+      entry.text,
+      entry.caseLabel || '',
+      entry.memo || '',
+      (entry.tags || []).map((t) => '#' + t).join(' '),
+      SOURCE_LABELS[entry.source] || '',
+    ]
+    return fields.some((f) => f.toLowerCase().includes(q))
+  }
+
+  function matchesTagFilter(entry) {
+    if (!activeTagFilter) return true
+    return (entry.tags || []).includes(activeTagFilter)
+  }
+
   async function render() {
     const list = await getHistory()
     clearChildren(listEl)
+    renderTagCloud(list)
+
     if (list.length === 0) {
       emptyEl.hidden = false
       listEl.hidden = true
+      searchStatus.classList.remove('is-visible')
       return
     }
+
     emptyEl.hidden = true
     listEl.hidden = false
-    for (const entry of list) {
+
+    const filtered = list.filter(
+      (e) => matchesTagFilter(e) && matchesQuery(e, currentQuery),
+    )
+
+    const isFiltering = currentQuery || activeTagFilter
+    if (isFiltering) {
+      const parts = []
+      if (activeTagFilter) parts.push(`#${activeTagFilter}`)
+      if (currentQuery) parts.push(`「${currentQuery}」`)
+      searchStatus.textContent = `${parts.join(' + ')}：${filtered.length} / ${list.length} 張卡片`
+      searchStatus.classList.add('is-visible')
+    } else {
+      searchStatus.classList.remove('is-visible')
+    }
+
+    for (const entry of filtered) {
       listEl.appendChild(renderCard(entry))
     }
   }
+
+  let searchTimer = null
+  searchInput.addEventListener('input', () => {
+    if (searchTimer) clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => {
+      currentQuery = searchInput.value.trim()
+      // If user is typing in search, clear the tag cloud active state
+      // so the two filters don't confuse each other.
+      if (currentQuery && activeTagFilter) {
+        activeTagFilter = ''
+      }
+      render()
+    }, 200)
+  })
 
   function formatFullTime(ts) {
     const d = new Date(ts)
@@ -206,6 +502,10 @@
       lines.push(`${idx + 1}. 【${sourceLabel}】${heading}`)
       lines.push(`複製時間：${formatFullTime(entry.createdAt)}`)
       if (entry.sourceUrl) lines.push(`原始網址：${entry.sourceUrl}`)
+      if (entry.tags && entry.tags.length) {
+        lines.push(`標籤：${entry.tags.map((t) => '#' + t).join(' ')}`)
+      }
+      if (entry.memo) lines.push(`備註：${entry.memo}`)
       lines.push('')
       lines.push(entry.text)
       lines.push('')
@@ -233,6 +533,12 @@
       lines.push(`- **複製時間**：${formatFullTime(entry.createdAt)}`)
       if (entry.sourceUrl) {
         lines.push(`- **原始網址**：<${entry.sourceUrl}>`)
+      }
+      if (entry.tags && entry.tags.length) {
+        lines.push(`- **標籤**：${entry.tags.map((t) => '#' + t).join(' ')}`)
+      }
+      if (entry.memo) {
+        lines.push(`- **備註**：${entry.memo}`)
       }
       lines.push('')
       // Quote the judgment text so it renders as a blockquote in Obsidian.
@@ -300,6 +606,9 @@
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'session' && changes[CLIP_HISTORY_KEY]) {
+      // Skip re-render when the change came from our own memo/tag save,
+      // otherwise the focused input would be destroyed mid-typing.
+      if (saveInFlight) return
       render()
     }
   })
