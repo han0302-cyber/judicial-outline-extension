@@ -66,7 +66,7 @@
 4. **自動主題配色**
    - `legal.judicial.gov.tw` (FINT / 法令判解系統) → 深青主色 `#336666`
    - `judgment.judicial.gov.tw` (FJUD / 裁判書系統) → 深綠主色 `#336633`
-   - `judgment.law.intraj` / `legal.law.intraj`（司法院內網） → 海軍藍主色 `#006699`，搭配內網頁面背景色
+   - `legal.law.intraj` / `judgment.law.intraj`（司法院內網） → 海軍藍主色 `#006699`，搭配內網頁面背景色
    - 每次 iframe 導航自動清理舊側欄、重新建構
 
 5. **使用者設定（後台選項頁面）**
@@ -98,8 +98,8 @@
 |---|---|---|
 | 司法院法令判解系統 | `https://legal.judicial.gov.tw/FINT/*` | 含 default.aspx 內嵌 iframe |
 | 司法院裁判書系統 | `https://judgment.judicial.gov.tw/FJUD/*` | 含 default.aspx 內嵌 iframe |
-| 司法院內網裁判書系統 | `https://judgment.law.intraj/*` | 內網版本，不限 FJUD/FINT 路徑，套用海軍藍專屬主題 |
 | 司法院內網判解函釋 | `https://legal.law.intraj/FINT/*` | 內網判解函釋，套用海軍藍專屬主題 |
+| 司法院內網裁判書系統 | `https://judgment.law.intraj/FJUD/*` | 內網裁判書系統，套用海軍藍專屬主題 |
 
 搜尋結果列表頁不會注入側欄（`#jud` 為 `<table>` 時自動豁免）。
 
