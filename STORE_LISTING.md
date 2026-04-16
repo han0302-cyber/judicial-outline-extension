@@ -65,7 +65,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 🆕 **v0.2.2 更新**
   • 新增支援司法院內部網路判解函釋 (`legal.law.intraj/FINT/*`)，院內使用 Chrome 亦可在判解函釋使用判決架構耳標與智慧複製功能
-  • 設定頁「耳標位置」內網選項涵蓋裁判書系統與判解函釋兩個內網網域
+  • 設定頁「耳標位置」內網判解函釋與內網裁判書系統可分別設定左右側
 
 🆕 **v0.2.1 更新**
   • 判決剪貼簿新增 **#標籤** 功能：每張卡片可加入自訂 #標籤，以彩色膠囊樣式顯示，顏色跟隨來源主題
@@ -127,7 +127,7 @@ Each card shows the source tag (裁判書 / 判解函釋 / intranet), the clicka
 
 ⚙️ **Options page**
   • Toggle "append citation on copy" (default: on)
-  • Per-site sidebar position (left / right) for FINT, FJUD, and intranet
+  • Per-site sidebar position (left / right) for FINT, FJUD, intranet FINT, and intranet FJUD
   • "Expand depth" slider 1–6 (default 3): controls how deep the outline auto-expands
   • All changes apply instantly to open tabs; user settings sync across devices via your Chrome account
 
@@ -151,7 +151,7 @@ Lawyers, legal staff, law students, and researchers — anyone who needs to read
 
 🆕 **v0.2.2 changes**
   • Added support for the Judicial Yuan intranet legal interpretations (`legal.law.intraj/FINT/*`)
-  • Intranet sidebar position setting now covers both judgment and legal interpretation intranet domains
+  • Intranet sidebar position (left / right) now independently configurable for legal interpretations and judgments
 
 🆕 **v0.2.1 changes**
   • New per-card **#hashtag** support: Obsidian-style colored pills, theme-matched to source system
