@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "司法院裁判書閱讀助手",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "在司法院法學資料檢索系統的裁判書頁面加上「判決架構」導覽，並於選取文字複製時自動移除分行、附上裁判字號。",
   "homepage_url": "https://github.com/han0302-cyber/judicial-outline-extension",
   "icons": {
@@ -29,7 +29,7 @@
       "matches": [
         "https://legal.judicial.gov.tw/FINT/*",
         "https://judgment.judicial.gov.tw/FJUD/*",
-        "https://judgment.law.intraj/FJUD/*"
+        "https://judgment.law.intraj/*"
       ],
       "js": ["content.js"],
       "css": ["sidebar.css"],

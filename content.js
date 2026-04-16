@@ -29,6 +29,7 @@
   let userPositions = {
     fint: 'left',
     fjud: 'left',
+    intraj: 'left',
   }
   let userAppendCitation = true
   // 耳標展開到第幾層（user-facing 深度，1-6）。內部 level 是 0-5，使用者
@@ -479,6 +480,7 @@
     try {
       const host = (hostDoc.defaultView || window).location.hostname
       if (host.indexOf('legal.judicial.gov.tw') !== -1) theme = 'fint'
+      else if (host.indexOf('judgment.law.intraj') !== -1) theme = 'intraj'
     } catch (_) {}
     aside.dataset.theme = theme
 
@@ -582,6 +584,22 @@
   }
 
   // ----- 裁判字號 extraction -----
+  //
+  // 頁面 metadata 欄位（.col-td）的 textContent 常夾帶隱藏元素的文字
+  // （如「量刑趨勢建議」「相關法條」），需截斷到書類名稱結尾。策略：
+  //   1. 先嘗試匹配「號」後面跟書類名稱（判決/裁定/決定書/判例/裁判書）
+  //   2. 若無已知書類名稱，退到最後一個「號」
+  //   3. 若連「號」都沒有（如「民事庭會議」），保留全文
+  function trimCaseLabel(raw) {
+    const v = raw.replace(/\s+/g, '').trim()
+    if (!v) return ''
+    const withSuffix = v.match(/^.+?號.*?(?:判決|裁定|決定書|判例|裁判書)/)
+    if (withSuffix) return withSuffix[0]
+    const to號= v.match(/^.+號/)
+    if (to號) return to號[0]
+    return v
+  }
+
   function extractCaseLabel() {
     // FJUD / FINT：先找 `.row > .col-th=裁判字號`（兩套共通 metadata 結構）
     const rows = document.querySelectorAll('.row')
@@ -591,7 +609,7 @@
       if (!/裁判字號/.test(th.textContent || '')) continue
       const td = row.querySelector('.col-td:not(.jud_content), .col-td')
       if (td) {
-        const v = (td.textContent || '').replace(/\s+/g, '').trim()
+        const v = trimCaseLabel(td.textContent || '')
         if (v) return v
       }
     }
@@ -599,10 +617,7 @@
     const text = document.body.innerText || ''
     const m = text.match(/裁判字號\s*[:：]?\s*([^\n\r]+)/)
     if (!m) return ''
-    let value = m[1]
-    const matchEnd = value.match(/.+?(判決|裁定)/)
-    if (matchEnd) value = matchEnd[0]
-    return value.replace(/\s+/g, '').trim()
+    return trimCaseLabel(m[1])
   }
 
   // ----- Copy text normalizer -----
@@ -719,6 +734,7 @@
       host = location.hostname
     }
     if (host.indexOf('legal.judicial.gov.tw') !== -1) source = 'fint'
+    else if (host.indexOf('judgment.law.intraj') !== -1) source = 'intraj'
     return { url, source }
   }
 

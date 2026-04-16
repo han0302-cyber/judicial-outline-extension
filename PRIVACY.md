@@ -1,7 +1,7 @@
 # Privacy Policy — 司法院裁判書閱讀助手
 
-**最後更新：2026-04-15**
-**擴充功能版本：v0.2.0**
+**最後更新：2026-04-16**
+**擴充功能版本：v0.2.1**
 
 ---
 
@@ -57,7 +57,7 @@
 1. **僅在下列網域載入**：
    - `https://legal.judicial.gov.tw/FINT/*` — 司法院法令判解系統
    - `https://judgment.judicial.gov.tw/FJUD/*` — 司法院裁判書系統
-   - `https://judgment.law.intraj/FJUD/*` — 司法院內部網路裁判書系統（限院內環境）
+   - `https://judgment.law.intraj/*` — 司法院內部網路（限院內環境，含 FJUD 與 FINT 等子系統）
 
    任何其他網站**完全不會載入**此擴充功能的程式碼——瀏覽器根本不會把 content script 注入到這三個 match pattern 以外的任何頁面。
 
@@ -125,7 +125,7 @@
 |---|---|
 | `host: legal.judicial.gov.tw/FINT/*` | 在法令判解系統的裁判書頁面注入判決架構側欄、攔截複製事件 |
 | `host: judgment.judicial.gov.tw/FJUD/*` | 在裁判書系統的裁判書頁面注入判決架構側欄、攔截複製事件 |
-| `host: judgment.law.intraj/FJUD/*` | 同上，供司法院內網環境使用 |
+| `host: judgment.law.intraj/*` | 同上，供司法院內網環境使用（含 FJUD、FINT 等子系統） |
 | `storage` | 儲存使用者設定（sync）、判決剪貼簿卡片（session 記憶體）、字體大小偏好（local）——全部為本機儲存，無任何遠端傳輸 |
 | `sidePanel` | 提供「判決剪貼簿」瀏覽器原生側邊欄 UI，讓使用者跨分頁檢視與再複製當次紀錄 |
 
@@ -163,5 +163,6 @@
 
 ## 📝 本政策的變更紀錄
 
+- **2026-04-16（v0.2.1）**：內網 URL pattern 放寬為 `judgment.law.intraj/*`，更新 host permission 說明
 - **2026-04-15（v0.2.0）**：新增判決剪貼簿側邊欄、Side Panel API、`chrome.storage.session`/`local` 說明；擴充 CWS Data Disclosure 對照表；新增合規聲明段落；加上完整「不做的事」清單
 - 更早版本：請見 git 歷史 <https://github.com/han0302-cyber/judicial-outline-extension/commits/main/PRIVACY.md>

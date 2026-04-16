@@ -25,6 +25,14 @@
   --fint-border: #bcd7d1;
 }
 
+#fint-outline-sidebar[data-theme="intraj"] {
+  /* 司法院內網 theme — navy blue, matching judgment.law.intraj colour scheme */
+  --fint-primary: #006699;
+  --fint-primary-dark: #004d73;
+  --fint-primary-soft: #e0f4ff;
+  --fint-border: #b3dae8;
+}
+
 /* ----- Right-side anchoring (user-configurable via options page) ----- */
 #fint-outline-sidebar[data-position="right"] {
   left: auto;

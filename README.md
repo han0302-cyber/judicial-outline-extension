@@ -62,6 +62,7 @@
 4. **自動主題配色**
    - `legal.judicial.gov.tw` (FINT / 法令判解系統) → 深青主色 `#336666`
    - `judgment.judicial.gov.tw` (FJUD / 裁判書系統) → 深綠主色 `#336633`
+   - `judgment.law.intraj` (司法院內網) → 海軍藍主色 `#006699`，搭配內網頁面背景色
    - 每次 iframe 導航自動清理舊側欄、重新建構
 
 5. **使用者設定（後台選項頁面）**
@@ -82,6 +83,7 @@
 | **複製設定** | 複製時自動附上裁判字號 | 開啟時，選取文字複製後尾端追加「（XX意旨參照）」；關閉時只移除分行不附字號 | 開 |
 | **耳標位置** | 法令判解系統（FINT）左 / 右 | 「判決架構」直條耳標停靠在頁面左側或右側 | 左 |
 | **耳標位置** | 裁判書系統（FJUD）左 / 右 | 同上，每個網站獨立設定 | 左 |
+| **耳標位置** | 裁判書系統 — 司法院內網（intraj）左 / 右 | 同上，內網獨立設定 | 左 |
 | **展開深度** | 耳標展開到第幾層（1–6） | 1 = 只到 `主文/壹`、2 = `+一`、**3 = `+(一)/㈠`（預設）**、4 = `+1./⒈`、5 = `+(1)/⑴`、6 = `+①` | 3 |
 
 所有設定**變更後立即套用**，已開啟的判決頁不需 reload —— 側欄會在 1 秒內自動切到新位置、新層級、複製功能也會立即遵循新規則。設定透過 `chrome.storage.sync` 儲存，登入同一個 Google 帳號的其他 Chrome 裝置會自動同步。
@@ -92,7 +94,7 @@
 |---|---|---|
 | 司法院法令判解系統 | `https://legal.judicial.gov.tw/FINT/*` | 含 default.aspx 內嵌 iframe |
 | 司法院裁判書系統 | `https://judgment.judicial.gov.tw/FJUD/*` | 含 default.aspx 內嵌 iframe |
-| 司法院內網裁判書系統 | `https://judgment.law.intraj/FJUD/*` | 內網版本，套用與 FJUD 相同的綠色主題與設定 |
+| 司法院內網 | `https://judgment.law.intraj/*` | 內網版本，不限 FJUD/FINT 路徑，套用海軍藍專屬主題 |
 
 搜尋結果列表頁不會注入側欄（`#jud` 為 `<table>` 時自動豁免）。
 
@@ -165,7 +167,7 @@
 | `manifest.json` | Chrome Extension MV3 manifest，宣告 match patterns、icons、permissions、content script 路徑、options page、side panel、service worker |
 | `content.js` | 核心邏輯：DOM 扁平化、階層偵測、側欄注入、智慧複製 handler、讀取使用者偏好、複製時推送紀錄到剪貼簿側邊欄 |
 | `background.js` | Service worker：設定 side panel 開啟行為，並開放 `chrome.storage.session` 給 content script 存取 |
-| `sidebar.css` | 頁內「判決架構」側欄與 toast 的樣式，含 FINT / FJUD 雙主題 CSS variables、左右側位置 |
+| `sidebar.css` | 頁內「判決架構」側欄與 toast 的樣式，含 FINT / FJUD / 內網三主題 CSS variables、左右側位置 |
 | `sidepanel.html` / `sidepanel.css` / `sidepanel.js` | 瀏覽器原生側邊欄「判決剪貼簿」的 UI、樣式與邏輯（卡片列表、字體縮放、匯出 .txt/.md、複製回剪貼簿） |
 | `options.html` | 後台設定頁面（擴充功能選項）—— 複製設定 + 耳標位置 |
 | `options.js` | 設定頁面的讀寫邏輯，使用 `chrome.storage.sync` |
