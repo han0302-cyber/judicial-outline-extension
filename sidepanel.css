@@ -161,6 +161,49 @@ body {
   margin-right: 6px;
 }
 
+.sp-cite-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+  margin-right: 6px;
+  cursor: default;
+}
+
+.sp-cite-group {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.sp-cite-group label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sp-cite-group input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sp-cite-group label:has(input:checked) {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
 .sp-title {
   margin: 0;
   font-size: 15px;

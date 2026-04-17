@@ -11,6 +11,8 @@
 //      （壹、一、(一)、㈠...）與主文/事實/理由三大段，點擊 scroll 到對應段落。
 //   2. 攔截 copy 事件：將選取文字的分行壓縮成單行，於尾端附上
 //      「（<裁判字號>意旨參照）」後寫入剪貼簿（Win/Mac 通用）。
+//      同時攔截 cut 事件，提供 Cmd/Ctrl+X「僅複製不存入剪貼簿卡片」的
+//      使用情境。
 //   3. 裁判字號從頁面「裁判字號：」欄位擷取後移除所有空白。
 //
 // 不修改頁面排版 — 只在文字節點中插入隱形 <span id> 當錨點，不會影響任何
@@ -810,70 +812,103 @@
       })
   }
 
-  // ----- Copy handler -----
+  // ----- Copy / Cut handlers -----
   //
-  // 攔截 copy 事件，將正規化後的文字寫入剪貼簿與 history。同時在選取範圍
-  // 的起、迄位置各插入一個空 <span> 作為書籤錨點，id 一併寫入 entry。
-  // 「前往」時以 getElementById 定位這兩個錨點；只要頁面未重載、DOM 未被
-  // SPA 重繪，即可直接滾動到該段落，無需透過 URL 比對或文字搜尋。
+  // Cmd/Ctrl+C（copy 事件）：正規化後寫入剪貼簿，並存入剪貼簿卡片 history。
+  // Cmd/Ctrl+X（cut 事件）：同樣寫入剪貼簿，但**不**存入卡片，供僅需一次性
+  // 貼到外部工具、不希望累積卡片清單的情境使用。判決頁文字為唯讀，cut 原生
+  // 無動作，以 preventDefault 攔截後改寫剪貼簿即可。
+  //
+  // 兩者共用選取文字正規化、字號附加、錨點插入（僅 copy 需要）與 toast 提示
+  // 的邏輯；差異僅在是否呼叫 pushClipHistory 與 toast 文案。
+  function isEditableTarget(target) {
+    if (!target || target.nodeType !== 1) return false
+    const tag = target.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+    return !!target.isContentEditable
+  }
+
+  function captureSelectionToClipboard(e, opts) {
+    const saveToHistory = !!(opts && opts.saveToHistory)
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed) return
+    const raw = sel.toString()
+    if (!raw.trim()) return
+    const clean = cleanCopyText(raw)
+    // 字號一律擷取（供卡片顯示），只有在使用者開啟設定時才附加到剪貼簿文字
+    const caseLabel = getCaseLabel()
+    const suffix = userAppendCitation && caseLabel ? '（' + caseLabel + '意旨參照）' : ''
+    const finalText = clean + suffix
+
+    // 在選取範圍的起、迄位置各插入一個空 <span> 作為書籤錨點，供卡片
+    // 「前往原文」使用；cut 不存卡片，故略過錨點插入。
+    // 插入順序必須先 end 後 start：若先插 start，srcRange 的 endContainer
+    // 可能被 splitText 切開，導致 end offset 失效。
+    let anchorIdStart = ''
+    let anchorIdEnd = ''
+    if (saveToHistory) {
+      try {
+        if (sel.rangeCount > 0) {
+          const uid = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7)
+          anchorIdStart = 'fint-clip-' + uid + '-s'
+          anchorIdEnd = 'fint-clip-' + uid + '-e'
+          const srcRange = sel.getRangeAt(0)
+          const endRange = srcRange.cloneRange()
+          endRange.collapse(false)
+          const endEl = document.createElement('span')
+          endEl.id = anchorIdEnd
+          endEl.className = 'fint-clip-anchor'
+          endRange.insertNode(endEl)
+          const startRange = srcRange.cloneRange()
+          startRange.collapse(true)
+          const startEl = document.createElement('span')
+          startEl.id = anchorIdStart
+          startEl.className = 'fint-clip-anchor'
+          startRange.insertNode(startEl)
+        }
+      } catch (_) {
+        anchorIdStart = ''
+        anchorIdEnd = ''
+      }
+    }
+
+    try {
+      if (e.clipboardData) {
+        e.clipboardData.setData('text/plain', finalText)
+        e.preventDefault()
+        if (saveToHistory) {
+          pushClipHistory(finalText, caseLabel, raw, anchorIdStart, anchorIdEnd).then((result) => {
+            if (result === 'duplicate') {
+              showToast('已複製過相同內容')
+            } else {
+              showToast(suffix ? '已複製純文字（附字號）' : '已複製純文字')
+            }
+          })
+        } else {
+          showToast(
+            suffix
+              ? '已複製純文字（附字號・未加入卡片）'
+              : '已複製純文字（未加入卡片）',
+          )
+        }
+      }
+    } catch (_) {
+      // If override fails, let the native copy/cut proceed.
+    }
+  }
+
   function installCopyHandler() {
     document.addEventListener(
       'copy',
+      (e) => captureSelectionToClipboard(e, { saveToHistory: true }),
+      true,
+    )
+    document.addEventListener(
+      'cut',
       (e) => {
-        const sel = window.getSelection()
-        if (!sel || sel.isCollapsed) return
-        const raw = sel.toString()
-        if (!raw.trim()) return
-        const clean = cleanCopyText(raw)
-        // 字號一律擷取（供卡片顯示），只有在使用者開啟設定時才附加到剪貼簿文字
-        const caseLabel = getCaseLabel()
-        const suffix = userAppendCitation && caseLabel ? '（' + caseLabel + '意旨參照）' : ''
-        const finalText = clean + suffix
-
-        // 在選取範圍的起、迄位置各插入一個空 <span> 作為書籤錨點。
-        // 插入順序必須先 end 後 start：若先插 start，srcRange 的 endContainer
-        // 可能被 splitText 切開，導致 end offset 失效。
-        let anchorIdStart = ''
-        let anchorIdEnd = ''
-        try {
-          if (sel.rangeCount > 0) {
-            const uid = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7)
-            anchorIdStart = 'fint-clip-' + uid + '-s'
-            anchorIdEnd = 'fint-clip-' + uid + '-e'
-            const srcRange = sel.getRangeAt(0)
-            const endRange = srcRange.cloneRange()
-            endRange.collapse(false)
-            const endEl = document.createElement('span')
-            endEl.id = anchorIdEnd
-            endEl.className = 'fint-clip-anchor'
-            endRange.insertNode(endEl)
-            const startRange = srcRange.cloneRange()
-            startRange.collapse(true)
-            const startEl = document.createElement('span')
-            startEl.id = anchorIdStart
-            startEl.className = 'fint-clip-anchor'
-            startRange.insertNode(startEl)
-          }
-        } catch (_) {
-          anchorIdStart = ''
-          anchorIdEnd = ''
-        }
-
-        try {
-          if (e.clipboardData) {
-            e.clipboardData.setData('text/plain', finalText)
-            e.preventDefault()
-            pushClipHistory(finalText, caseLabel, raw, anchorIdStart, anchorIdEnd).then((result) => {
-              if (result === 'duplicate') {
-                showToast('已複製過相同內容')
-              } else {
-                showToast(suffix ? '已複製純文字（附字號）' : '已複製純文字')
-              }
-            })
-          }
-        } catch (_) {
-          // If override fails, let the native copy proceed.
-        }
+        // 可編輯欄位（搜尋框、登入框等）保留原生剪下行為，不攔截
+        if (isEditableTarget(e.target)) return
+        captureSelectionToClipboard(e, { saveToHistory: false })
       },
       true,
     )

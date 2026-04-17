@@ -24,7 +24,7 @@
 側欄會自動跳過引號內被引用的條文（例如「按 X 法第 N 條規定：⋯一、⋯二、⋯」），不會把法條條款誤抓成本篇判決的大綱；卡片寬度也會依當下展開的最深層級自動調整，淺判決保持窄、深判決自動加寬避免標籤被截斷。
 
 ✂️ **智慧複製**
-選取任何一段判決文字後複製，自動移除換行與中日韓字元間的多餘空白，並於尾端附上「（<裁判字號>意旨參照）」，方便直接貼進書狀或筆記。英數字之間的空格（如 "NT 300"）會被保留。字號附加功能可在設定頁一鍵關閉。
+選取任何一段判決文字後複製，自動移除換行與中日韓字元間的多餘空白，並於尾端附上「（<裁判字號>意旨參照）」，方便直接貼進書狀或筆記。英數字之間的空格（如 "NT 300"）會被保留。字號附加功能可在設定頁或側邊欄頂端一鍵關閉。另提供 **Cmd+X / Ctrl+X** 快速鍵：同樣正規化後寫入剪貼簿，但不存入剪貼簿卡片，適用於僅需一次性貼到外部工具、不希望累積卡片清單的情境。
 
 📋 **判決剪貼簿側邊欄**
 每次 Cmd+C / Ctrl+C 複製後，擴充功能會把「去分行 + 附字號」的完整文字推進 Chrome 瀏覽器原生側邊欄，以卡片形式保存**當次瀏覽期間**的所有判決段落。側邊欄由點擊工具列的擴充功能圖示開啟，**不限於裁判書頁面** —— 切到 Google Docs、Word Online、Obsidian Web、Notion 等任何分頁都看得到同一份卡片清單，點卡片上的「複製」鈕即可貼上，非常適合需要一次引用多段判決文字的書狀撰寫情境。
@@ -34,7 +34,7 @@
 **隱私設計**：剪貼簿紀錄只存在 `chrome.storage.session`（Chrome 原生記憶體暫存區），關閉瀏覽器即自動清空，**不寫入硬碟、不上傳雲端、不跨裝置同步**。即使同時開多個瀏覽器視窗，紀錄在同一個瀏覽器程序內共享、另開瀏覽器則各自獨立。
 
 ⚙️ **後台設定頁面**
-  　• 「複製時自動附上裁判字號」開關（預設：開）
+  　• 「複製時自動附上裁判字號」開關（預設：開），亦可於判決剪貼簿側邊欄頂端即時切換，兩端共用同一設定
   　• 法令判解系統、裁判書系統、內網判解函釋、內網裁判書系統的「判決架構」耳標可分別設定停靠在頁面左側或右側
   　• 「展開深度」可在 1 到 6 層之間調整（預設 3）：
   　　　1 — 主文／事實／理由 + 壹、貳、參
@@ -62,6 +62,11 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **適合誰**
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
+
+🆕 **v0.2.4 更新**
+  • 判決剪貼簿側邊欄頂端新增「**附上字號 開／關**」即時切換，與設定頁共用同一設定，任一端變更即時同步至所有分頁、設定頁與 content script，不需開後台
+  • 新增 **Cmd+X / Ctrl+X 快速複製但不存卡片**：同樣套用正規化與字號附加（若已開啟）寫入剪貼簿，但跳過「判決剪貼簿」卡片入檔，適用於僅需一次性貼到外部工具、不希望卡片清單累積的情境
+  • 可編輯欄位（搜尋框、登入框等）的原生剪下行為保留不受攔截
 
 🆕 **v0.2.3 更新**
   • 判決剪貼簿卡片新增「**前往**」按鈕：一鍵跳回該段落在原始判決頁面的位置
@@ -123,7 +128,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 Automatically detects the full 6-level Taiwanese legal numbering hierarchy — from top-level 壹/貳 → 一/二 → (一)/㈠ → 1./⒈/１． → (1)/⑴/（１） → ①/②/③ — plus the section headings 主文/事實/理由/事實及理由. Builds a clickable table of contents on the left (or right, configurable) edge of the page. Clicking an item smoothly scrolls to the corresponding paragraph, with the sticky header offset baked in. Quoted statute citations (e.g. "按 X 法第 N 條規定：⋯一、⋯二、⋯") are skipped so the outline reflects only the ruling's own structure. Card width auto-adjusts to the deepest expanded level, keeping shallow rulings narrow and wide rulings readable.
 
 ✂️ **Smart copy**
-Select any judgment text and copy it — line breaks and padding whitespace between CJK characters are stripped automatically, and the citation suffix `（<case-number>意旨參照）` is appended. Spaces between ASCII alphanumerics (like "NT 300") are preserved. The citation suffix can be toggled off in the options page.
+Select any judgment text and copy it — line breaks and padding whitespace between CJK characters are stripped automatically, and the citation suffix `（<case-number>意旨參照）` is appended. Spaces between ASCII alphanumerics (like "NT 300") are preserved. The citation suffix can be toggled off from either the options page or the side panel header. A secondary shortcut **Cmd+X / Ctrl+X** also writes the normalized (and optionally citation-suffixed) text to the clipboard but skips the clipboard-card store, for one-off pastes that shouldn't accumulate in the card list.
 
 📋 **Clipboard side panel**
 Every Cmd+C / Ctrl+C is also saved as a card in Chrome's native side panel, accumulating **every copy made during the current browser session**. Open the panel from the toolbar icon — it's **not limited to ruling pages**, so you can switch to Google Docs, Word Online, Obsidian Web, Notion, etc. and still see the same card list, clicking each card's "Copy" button to paste one by one. Ideal for brief-writing workflows that cite multiple passages.
@@ -133,7 +138,8 @@ Each card shows the source tag (裁判書 / 判解函釋 / 內網判解函釋 / 
 **Privacy by design**: Clipboard history is stored only in `chrome.storage.session` (Chrome's native in-memory storage). It is wiped the moment you close the browser — **never written to disk, never uploaded, never synced across devices**.
 
 ⚙️ **Options page**
-  • Toggle "append citation on copy" (default: on)
+  • Toggle "append citation on copy" (default: on) — also exposed at the top of the clipboard side panel as an inline switch; both endpoints share the same setting and propagate changes instantly
+
   • Per-site sidebar position (left / right) for FINT, FJUD, intranet FINT, and intranet FJUD
   • "Expand depth" slider 1–6 (default 3): controls how deep the outline auto-expands
   • All changes apply instantly to open tabs; user settings sync across devices via your Chrome account
@@ -155,6 +161,11 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **Who is it for**
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
+
+🆕 **v0.2.4 changes**
+  • New **inline "append citation" toggle** at the top of the clipboard side panel: shares the same setting as the options page, and changes propagate instantly across all tabs, the options page, and the content script — no need to open the backend
+  • New **Cmd+X / Ctrl+X shortcut — copy without adding to cards**: applies the same normalization and citation suffix (when enabled) to the clipboard, but skips the clipboard-card store, for one-off pastes to external tools that shouldn't accumulate in the card list
+  • Native cut behavior is preserved inside editable fields (search boxes, login forms, etc.) — only non-editable selections on ruling pages are intercepted
 
 🆕 **v0.2.3 changes**
   • New **"Go to source"** button on each clipboard card: jumps back to the exact paragraph on the original ruling page

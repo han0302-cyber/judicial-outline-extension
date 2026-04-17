@@ -11,6 +11,7 @@
   const toastEl = document.getElementById('sp-toast')
   const fsMinusBtn = document.getElementById('sp-fs-minus')
   const fsPlusBtn = document.getElementById('sp-fs-plus')
+  const citeRadios = document.querySelectorAll('input[name="sp-citation"]')
   const searchInput = document.getElementById('sp-search')
   const searchStatus = document.getElementById('sp-search-status')
   const tagCloudEl = document.getElementById('sp-tag-cloud')
@@ -870,7 +871,43 @@
       if (saveInFlight) return
       render()
     }
+    if (area === 'sync' && changes.appendCitation) {
+      applyCiteChecked(changes.appendCitation.newValue)
+    }
   })
+
+  // ----- Append-citation toggle -----
+  //
+  // 與 options 頁共用 chrome.storage.sync 的 appendCitation 鍵；任一端切換後，
+  // storage.onChanged 會即時同步到另一端與 content script。
+  function applyCiteChecked(value) {
+    const on = value !== false
+    citeRadios.forEach((el) => {
+      el.checked = el.value === (on ? 'on' : 'off')
+    })
+  }
+
+  async function loadAppendCitation() {
+    try {
+      const { appendCitation } = await chrome.storage.sync.get({
+        appendCitation: true,
+      })
+      applyCiteChecked(appendCitation)
+    } catch (_) {
+      applyCiteChecked(true)
+    }
+  }
+
+  citeRadios.forEach((el) => {
+    el.addEventListener('change', () => {
+      if (!el.checked) return
+      chrome.storage.sync
+        .set({ appendCitation: el.value === 'on' })
+        .catch(() => {})
+    })
+  })
+
+  loadAppendCitation()
 
   // ----- Font-size control (persists in chrome.storage.local) -----
   let fontIdx = FONT_DEFAULT_IDX
