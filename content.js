@@ -8,7 +8,8 @@
 //
 // 三件事：
 //   1. 在左側固定一個「判決架構」卡片（hover tab），掃描正文內容的層級標記
-//      （壹、一、(一)、㈠...）與主文/事實/理由三大段，點擊 scroll 到對應段落。
+//      （壹、一、(一)、㈠...）與主文／事實／理由／附表等章段，點擊 scroll 到
+//      對應段落。
 //   2. 攔截 copy 事件：將選取文字的分行壓縮成單行，於尾端附上
 //      「（<裁判字號>意旨參照）」後寫入剪貼簿（Win/Mac 通用）。
 //      同時攔截 cut 事件，提供 Cmd/Ctrl+X「僅複製不存入剪貼簿卡片」的
@@ -295,6 +296,20 @@
     //   單字段：主文 / 事實 / 理由（可能寫成「主 文」「主　文」）
     //   合併段：事實及理由（部分法院如地院刑事判決常用）
     const SECTION_HEADER_RE = /^(?:[主事理][\s\u3000]*[文實由]|事[\s\u3000]*實[\s\u3000]*及[\s\u3000]*理[\s\u3000]*由)[\s\u3000]*$/
+    // 判決末尾附表：與主文、理由同級之章段標題，常見格式：
+    //   附表：　　　　　（單獨一行）
+    //   附表一：／附表二：（中文數字）
+    //   附表甲：／附表乙：（天干）
+    //   附表壹：販賣第二級毒品甲基安非他命部分：（全形中文數字與標題同行）
+    //   附表1：／附表２：（半形或全形阿拉伯數字）
+    //   附表一（即起訴書附表一）：（編號後夾全形括號註記）
+    //   附表十四【被告廖威承部分退併辦】：（編號後夾全形方括號註記）
+    // 硬性要求「附表X」之後緊接全形或半形冒號（允許中間夾一段全形/半形
+    // 括號或方括號註記），或為行尾，始視為章段標題。正文中「附表一、二
+    // 所示建物」「附表一所載」「附表所示金額」等行文即使落在「。」後之
+    // 行首候選位置，亦因缺少冒號而不致誤判。標籤僅截取「附表」或
+    // 「附表X」前綴，不含後續標題與括號註記，以免耳標過長。
+    const APPENDIX_HEADER_RE = /^(附[\s\u3000]*表[\s\u3000]*(?:[一二三四五六七八九十百千]+|[甲乙丙丁戊己庚辛壬癸]+|[壹貳參肆伍陸柒捌玖拾]+|[\d\uFF10-\uFF19]+)?)[\s\u3000]*(?:[（(【][^）)】\n]*[）)】][\s\u3000]*)?(?:[：:]|$)/
     // 句尾/段首上下文：這些字元之後的下一個非空白字元是潛在的 line start。
     const START_CONTEXT_RE = /[。！？；：!?;:\n]/
 
@@ -332,9 +347,23 @@
       if (!lineText) continue
 
       // 引號內的 一/二/三（法條引用等）不算大綱，直接 skip。
-      // Section heading 故意繞過這個檢查 —— 因為 "主文" "事實" "理由" 絕對
+      // Section heading 故意繞過這個檢查 —— 因為 "主文" "事實" "理由" "附表"
       // 不會出現在引號內，這個 check 對它們是 no-op；但 enum 編號就會被濾。
+      const appendixMatch = insideQuote[realPos] ? null : lineText.match(APPENDIX_HEADER_RE)
       if (insideQuote[realPos] && !SECTION_HEADER_RE.test(lineText)) continue
+
+      // 附表章段：標籤僅取「附表」或「附表X」前綴，略過後續標題文字。
+      // 另要求附表獨占新行（由 realPos 往回僅能跨越水平空白即應撞到
+      // 換行字元或文件開頭），排除「。附表壹：…」此類因句號觸發行首
+      // 候選、實際仍在前句同一行之誤判。
+      if (appendixMatch) {
+        let back = realPos - 1
+        while (back >= 0 && /[ \t\u3000]/.test(full.charAt(back))) back--
+        if (back < 0 || full.charAt(back) === '\n') {
+          pushRaw(realPos, 0, appendixMatch[1].replace(/\s+/g, ''))
+          continue
+        }
+      }
 
       // Section heading (主文/事實/理由) — force short label so the label
       // slicer below doesn't spill into the section's body content when

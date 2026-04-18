@@ -19,7 +19,7 @@
 ### 繁體中文
 
 📑 **判決架構側欄**
-自動偵測判決書的多層編號標記 —— 從最外層的「壹／貳」、「一、二、」、「(一)／㈠」，到較深的「1.／⒈／１．」、「(1)／⑴／（１）」、再到最深的「①／②／③」共 6 層階層；以及「主文／事實／理由／事實及理由」段落標題。在頁面左側（或右側，可設定）產生可點擊的目錄，點擊後平滑捲動到對應段落，自動扣掉頁首固定列的遮擋高度。
+自動偵測判決書的多層編號標記 —— 從最外層的「壹／貳」、「一、二、」、「(一)／㈠」，到較深的「1.／⒈／１．」、「(1)／⑴／（１）」、再到最深的「①／②／③」共 6 層階層；以及「主文／事實／理由／事實及理由」段落標題，與判決末尾的「附表／附表一／附表甲／附表壹／附表1」等章段（亦相容「附表X（即起訴書附表X）：」「附表X【被告某某部分併辦】：」等編號後夾括號註記之格式）。在頁面左側（或右側，可設定）產生可點擊的目錄，點擊後平滑捲動到對應段落，自動扣掉頁首固定列的遮擋高度。
 
 側欄會自動跳過引號內被引用的條文（例如「按 X 法第 N 條規定：⋯一、⋯二、⋯」），不會把法條條款誤抓成本篇判決的大綱；卡片寬度也會依當下展開的最深層級自動調整，淺判決保持窄、深判決自動加寬避免標籤被截斷。
 
@@ -37,7 +37,7 @@
   　• 「複製時自動附上裁判字號」開關（預設：開），亦可於判決剪貼簿側邊欄頂端即時切換，兩端共用同一設定
   　• 法令判解系統、裁判書系統、內網判解函釋、內網裁判書系統的「判決架構」耳標可分別設定停靠在頁面左側或右側
   　• 「展開深度」可在 1 到 6 層之間調整（預設 3）：
-  　　　1 — 主文／事實／理由 + 壹、貳、參
+  　　　1 — 主文／事實／理由／附表 + 壹、貳、參
   　　　2 — 再加上 一、二、三
   　　　3 — 再加上 (一)、(二) ／ ㈠、㈡（預設）
   　　　4 — 再加上 1.、2. ／ ⒈、⒉ ／ １．、２．
@@ -62,6 +62,12 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **適合誰**
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
+
+🆕 **v0.2.5 更新**
+  • 判決架構耳標新增「**附表**」章段偵測：判決書末尾的 `附表` 視為與主文、事實、理由同級之章段標題，支援 `附表：`、`附表一／二`（中文數字）、`附表甲／乙`（天干）、`附表壹／貳`（全形中文數字）、`附表1／２`（半形或全形阿拉伯數字）等編號形式
+  • 相容實務常見的「編號後夾括號註記」寫法：`附表X（即起訴書附表X）：`、`附表X【被告某某部分併辦】：` 等格式亦能正確命中
+  • 嚴格收斂誤判：要求 `附表X` 必須獨占新行且緊接全形或半形冒號（或為行尾），正文中「如附表一所示」「附表一、二所示建物」「附表所載」等行文不會被誤判為章段
+  • 耳標標籤只顯示「附表」或「附表X」前綴，不含後續標題與括號註記，維持側欄視覺簡潔
 
 🆕 **v0.2.4 更新**
   • 判決剪貼簿側邊欄頂端新增「**附上字號 開／關**」即時切換，與設定頁共用同一設定，任一端變更即時同步至所有分頁、設定頁與 content script，不需開後台
@@ -125,7 +131,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 ### English
 
 📑 **Judgment outline sidebar**
-Automatically detects the full 6-level Taiwanese legal numbering hierarchy — from top-level 壹/貳 → 一/二 → (一)/㈠ → 1./⒈/１． → (1)/⑴/（１） → ①/②/③ — plus the section headings 主文/事實/理由/事實及理由. Builds a clickable table of contents on the left (or right, configurable) edge of the page. Clicking an item smoothly scrolls to the corresponding paragraph, with the sticky header offset baked in. Quoted statute citations (e.g. "按 X 法第 N 條規定：⋯一、⋯二、⋯") are skipped so the outline reflects only the ruling's own structure. Card width auto-adjusts to the deepest expanded level, keeping shallow rulings narrow and wide rulings readable.
+Automatically detects the full 6-level Taiwanese legal numbering hierarchy — from top-level 壹/貳 → 一/二 → (一)/㈠ → 1./⒈/１． → (1)/⑴/（１） → ①/②/③ — plus the section headings 主文/事實/理由/事實及理由 and trailing 附表 blocks (including 附表一, 附表甲, 附表壹, 附表1 variants). Builds a clickable table of contents on the left (or right, configurable) edge of the page. Clicking an item smoothly scrolls to the corresponding paragraph, with the sticky header offset baked in. Quoted statute citations (e.g. "按 X 法第 N 條規定：⋯一、⋯二、⋯") are skipped so the outline reflects only the ruling's own structure. Card width auto-adjusts to the deepest expanded level, keeping shallow rulings narrow and wide rulings readable.
 
 ✂️ **Smart copy**
 Select any judgment text and copy it — line breaks and padding whitespace between CJK characters are stripped automatically, and the citation suffix `（<case-number>意旨參照）` is appended. Spaces between ASCII alphanumerics (like "NT 300") are preserved. The citation suffix can be toggled off from either the options page or the side panel header. A secondary shortcut **Cmd+X / Ctrl+X** also writes the normalized (and optionally citation-suffixed) text to the clipboard but skips the clipboard-card store, for one-off pastes that shouldn't accumulate in the card list.
@@ -161,6 +167,12 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **Who is it for**
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
+
+🆕 **v0.2.5 changes**
+  • Outline now detects **trailing 附表 section headings** as first-level entries alongside 主文 / 事實 / 理由. Supports `附表：`, `附表一／二` (Chinese numerals), `附表甲／乙` (Heavenly Stems), `附表壹／貳` (full-width Chinese numerals), and `附表1／２` (half-width or full-width Arabic numerals)
+  • Also handles the common practitioner format where the numeral is followed by a parenthetical or bracketed note before the colon, e.g. `附表X（即起訴書附表X）：` or `附表X【被告某某部分併辦】：`
+  • Strict false-positive controls: the heading must occupy its own new line and `附表X` must be followed by a full-width or half-width colon (or end of line). Inline prose such as `如附表一所示`, `附表一、二所示建物`, or `附表所載` is not mistaken for a heading even when it happens to follow a sentence-ending `。`
+  • Outline label only shows the `附表` or `附表X` prefix — parenthetical notes and trailing titles are omitted to keep the sidebar compact
 
 🆕 **v0.2.4 changes**
   • New **inline "append citation" toggle** at the top of the clipboard side panel: shares the same setting as the options page, and changes propagate instantly across all tabs, the options page, and the content script — no need to open the backend
