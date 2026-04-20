@@ -841,11 +841,20 @@
     const ensureNewline = () => {
       if (full && !full.endsWith('\n')) full += '\n'
     }
+    // 文字節點內之 \n／\r 一律視為「軟斷行」（FJUD／FINT 以 <pre>-like 排版，
+    // 長段落於原始 HTML 以換行 + 縮排做視覺折行，其中之 \n 並非段落邊界），
+    // 於此正規化為空白；\n 僅保留來自 ensureNewline（即區塊 / <br> 邊界）之
+    // 注入，成為真正之段落／句段分隔符。此舉使：
+    //   • findOpinionStart 之 lastIndexOf('\n') 精準落於真正段落起點
+    //   • proximity gap 之 \n 檢查成為「跨段」判定，不受軟斷行誤攔
+    //   • 以字元對字元替換（\n→空白、\r→空白），text node 長度不變，segments
+    //     與 DOM 位置映射維持完整
     const walk = (el) => {
       for (const child of el.childNodes) {
         if (child.nodeType === Node.TEXT_NODE) {
-          const v = child.nodeValue || ''
-          if (!v) continue
+          const raw = child.nodeValue || ''
+          if (!raw) continue
+          const v = raw.replace(/[\r\n]/g, ' ')
           segments.push({
             node: child,
             start: full.length,
