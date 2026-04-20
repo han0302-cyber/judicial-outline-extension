@@ -7,10 +7,10 @@
 ## Short description（≤132 字元）
 
 ### 繁體中文
-> 裁判書頁面加上「判決架構」導覽、智慧複製（去分行、附字號），並提供瀏覽器側邊欄「判決剪貼簿」跨分頁保存並匯出複製過的段落。
+> 裁判書頁面加上「判決架構」導覽、最高法院引文參照清單、智慧複製（去分行、附字號），並提供瀏覽器側邊欄「判決剪貼簿」跨分頁保存並匯出複製過的段落。
 
 ### English
-> Judgment outline sidebar, smart copy (strip line breaks + append citation), and a browser side panel clipboard to save and export copied passages across tabs.
+> Judgment outline sidebar, Supreme Court citation panel, smart copy (strip line breaks + append citation), and a browser side panel clipboard to save and export copied passages across tabs.
 
 ---
 
@@ -22,6 +22,9 @@
 自動偵測判決書的多層編號標記 —— 從最外層的「壹／貳」、「一、二、」、「(一)／㈠」，到較深的「1.／⒈／１．」、「(1)／⑴／（１）」、再到最深的「①／②／③」共 6 層階層；以及「主文／事實／理由／事實及理由」段落標題，與判決末尾的「附表／附表一／附表甲／附表壹／附表1」等章段（亦相容「附表X（即起訴書附表X）：」「附表X【被告某某部分併辦】：」等編號後夾括號註記之格式）。在頁面左側（或右側，可設定）產生可點擊的目錄，點擊後平滑捲動到對應段落，自動扣掉頁首固定列的遮擋高度。
 
 側欄會自動跳過引號內被引用的條文（例如「按 X 法第 N 條規定：⋯一、⋯二、⋯」），不會把法條條款誤抓成本篇判決的大綱；卡片寬度也會依當下展開的最深層級自動調整，淺判決保持窄、深判決自動加寬避免標籤被截斷。
+
+🏛 **參照頁籤（裁判意旨引文清單）**
+側邊欄另設獨立「參照」頁籤，抽取判決正文所有權威意旨引用並彙整為清單，共涵蓋七類實務寫法：最高法院判決／裁定（`最高法院112年度台上字第187號`）、最高法院大法庭裁定（`最高法院刑事大法庭109年度台上大字第1869號`）、最高法院民刑事庭會議決議（`最高法院94年度第6、7次刑事庭會議決議`，支援多次編號）、法律座談會決議／審查意見（`本院暨所屬法院101年法律座談會民執類提案第18號決議`，涵蓋高院暨所屬法院與高院分院）、大法官釋字解釋（`司法院釋字第679號解釋`）、憲法法庭判決／裁定（`憲法法庭113年憲判字第3號判決`）、最高行政法院庭長法官聯席會議決議（`最高行政法院98年度6月份第1次庭長法官聯席會議決議`）。同一組括號內以頓號並列、第二筆以後省略「最高法院」前綴、跨類混列的寫法亦能逐一拆分並分別歸類。每一筆條目顯示案號 badge 與意旨段落前 90 字摘要（限於同段落內回溯，不跨段抓取），點擊即跳轉至該段落並暫態鵝黃高亮，再點一次清除；七類 badge 依類別分色（主題色／暖琥珀／中性灰／藕紫／深玫瑰紅／淺玫瑰紅／青綠），利於快速辨識。正文中的 `（…）` 引文附記同步以柔和天藍灰底長駐高亮。
 
 ✂️ **智慧複製**
 選取任何一段判決文字後複製，自動移除換行與中日韓字元間的多餘空白，並於尾端附上「（<裁判字號>意旨參照）」，方便直接貼進書狀或筆記。英數字之間的空格（如 "NT 300"）會被保留。字號附加功能可在設定頁或側邊欄頂端一鍵關閉。另提供 **Cmd+X / Ctrl+X** 快速鍵：同樣正規化後寫入剪貼簿，但不存入剪貼簿卡片，適用於僅需一次性貼到外部工具、不希望累積卡片清單的情境。
@@ -35,6 +38,7 @@
 
 ⚙️ **後台設定頁面**
   　• 「複製時自動附上裁判字號」開關（預設：開），亦可於判決剪貼簿側邊欄頂端即時切換，兩端共用同一設定
+  　• 「顯示參照頁籤」開關（預設：開），關閉後僅保留「判決架構」耳標，正文亦不再長駐高亮括號附記
   　• 法令判解系統、裁判書系統、內網判解函釋、內網裁判書系統的「判決架構」耳標可分別設定停靠在頁面左側或右側
   　• 「展開深度」可在 1 到 6 層之間調整（預設 3）：
   　　　1 — 主文／事實／理由／附表 + 壹、貳、參
@@ -62,6 +66,14 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **適合誰**
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
+
+🆕 **v0.2.6 更新**
+  • 側邊欄新增「**參照**」頁籤：抽取判決正文所有最高法院引用，彙整為獨立清單，點擊即跳轉至被引段落並暫態高亮
+  • **七類意旨引文完整涵蓋**：最高法院判決／裁定、最高法院大法庭裁定、最高法院民刑事庭會議決議（含「第6、7次」多次編號）、法律座談會決議／審查意見（本院暨所屬法院、高院暨所屬法院、高院分院等）、大法官釋字解釋、憲法法庭判決／裁定／暫時處分／補充判決、最高行政法院庭長法官聯席會議決議；同一組括號內以頓號並列、第二筆以後省略前綴、跨類混列寫法亦能正確拆分並歸類
+  • **意旨摘要限段落內**：偵測引文括號位置後往前僅回溯至同段落起點（最近的分段符號之後），不跨段抓取；側邊欄顯示前 90 字摘要，大法庭裁定與庭會議決議的案號以琥珀與中性灰分色標示
+  • **點擊 toggle 高亮**：參照項目點擊後以鵝黃暫態高亮整段意旨；同一項再次點擊即清除高亮，利於看過即走、不留視覺殘留
+  • **正文引文括號長駐高亮**：所有 `（最高法院…）` 附記以柔和天藍灰底長駐高亮，閱讀時可快速掃到，與既有「前往」鵝黃高亮可同時顯示而不衝色
+  • **後台新增「參照耳標」開關**（預設開）：不需要時可於設定頁一鍵關閉，關閉後完全跳過引文抽取與正文長駐高亮
 
 🆕 **v0.2.5 更新**
   • 判決架構耳標新增「**附表**」章段偵測：判決書末尾的 `附表` 視為與主文、事實、理由同級之章段標題，支援 `附表：`、`附表一／二`（中文數字）、`附表甲／乙`（天干）、`附表壹／貳`（全形中文數字）、`附表1／２`（半形或全形阿拉伯數字）等編號形式
@@ -167,6 +179,15 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **Who is it for**
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
+
+🆕 **v0.2.6 changes**
+  • New **"Citations" sidebar tab**: extracts every authoritative opinion citation in the ruling (Supreme Court judgments/rulings, Supreme Court Grand Chamber rulings, Supreme Court civil/criminal chamber resolutions, inter-court symposium resolutions, Grand Justices' interpretations, Constitutional Court judgments, and Supreme Administrative Court presiding-justice joint conference resolutions — seven categories in total), with per-entry jump and transient highlight
+  • **Full-text scan with proximity grouping** replaces paren-only detection, covering both parenthesized form `（最高法院…）` and inline prose form (`…有最高法院X年度台上字第N號判決要旨，及同院Y年度第K次民事庭決議可參`); multi-case lists separated by 、 are split even when later entries omit the "最高法院" prefix
+  • **Cite vs. rebut disambiguation**: inline citations must end with a strong concluder (意旨參照／要旨參照／可資參照／足資參照／可參／參照 etc.) to be accepted; otherwise treated as a rebuttal reference (e.g., "…援引最高法院XX決議，惟…不同") and omitted, so courts' refuted precedents are not marked as authority
+  • **Per-paragraph opinion start**: the highlighted passage begins at the paragraph head (or at the preceding citation's end for multi-citation paragraphs), and leading enumeration markers (壹／一／㈠／(一)／1.／⒈／⑴／①) are automatically stripped
+  • **One-click "Copy" button** on each citation entry: normalizes the passage (optionally appending the current judgment's case label, per the "append citation" setting) and writes to the system clipboard while simultaneously pushing it into the clipboard card list with bookmark anchors for later "Go to source" jumps
+  • **Persistent inline highlight** on every `（最高法院…）` marker (soft sky-blue tint); case badges are color-coded by category — Supreme Court judgment (theme color) / Grand Chamber (warm amber) / chamber resolution (neutral grey) / symposium (lilac) / Grand Justices interpretation (deep rose) / Constitutional Court (light rose) / Supreme Administrative joint conference (teal)
+  • Added **"Show Citations tab" toggle** to the options page (on by default); disabling it skips the extraction entirely and removes both the tab and the inline highlight
 
 🆕 **v0.2.5 changes**
   • Outline now detects **trailing 附表 section headings** as first-level entries alongside 主文 / 事實 / 理由. Supports `附表：`, `附表一／二` (Chinese numerals), `附表甲／乙` (Heavenly Stems), `附表壹／貳` (full-width Chinese numerals), and `附表1／２` (half-width or full-width Arabic numerals)

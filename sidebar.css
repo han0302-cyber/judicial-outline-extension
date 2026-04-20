@@ -46,9 +46,20 @@
   right: 32px;
   transform: translateX(8px);
 }
-#fint-outline-sidebar[data-position="right"]:hover .fint-outline-card,
-#fint-outline-sidebar[data-position="right"]:focus-within .fint-outline-card {
+#fint-outline-sidebar[data-position="right"] .fint-tab-group:hover .fint-outline-card,
+#fint-outline-sidebar[data-position="right"] .fint-tab-group:focus-within .fint-outline-card {
   transform: translateX(0);
+}
+
+/* 頁籤群組（tab group）：每組 = 一個垂直 tab + 一張浮出卡片。多個 group
+   垂直堆疊於 aside 左緣，彼此獨立 hover，不互相覆蓋。 */
+#fint-outline-sidebar .fint-tab-group {
+  position: relative;
+  margin-bottom: 10px;
+  pointer-events: none;
+}
+#fint-outline-sidebar .fint-tab-group:last-child {
+  margin-bottom: 0;
 }
 
 #fint-outline-sidebar .fint-outline-tab {
@@ -68,6 +79,13 @@
   cursor: pointer;
   pointer-events: auto;
   user-select: none;
+}
+
+/* 「參照」頁籤視覺上與「判決架構」同色系但略短，避免兩者長度一致時視覺過重；
+   仍維持相同字級、對比與陰影。 */
+#fint-outline-sidebar .fint-citations-tab {
+  height: 96px;
+  letter-spacing: 0.32em;
 }
 
 #fint-outline-sidebar .fint-outline-card {
@@ -101,8 +119,16 @@
   width: 440px;
 }
 
-#fint-outline-sidebar:hover .fint-outline-card,
-#fint-outline-sidebar:focus-within .fint-outline-card {
+/* 參照卡片預設較寬，容納意旨段落摘錄與案號 badge。
+ * 參照頁籤位於架構頁籤下方（aside top 96px + 架構 tab 128px + 間距 10px ≈ 234px
+ * 於視窗頂端），因此 max-height 需較架構卡片更小，避免卡片底部溢出視窗。 */
+#fint-outline-sidebar .fint-citations-card {
+  width: 440px;
+  max-height: calc(100vh - 260px);
+}
+
+#fint-outline-sidebar .fint-tab-group:hover .fint-outline-card,
+#fint-outline-sidebar .fint-tab-group:focus-within .fint-outline-card {
   opacity: 1;
   visibility: visible;
   transform: translateX(0);
@@ -213,4 +239,195 @@
 ::highlight(fint-jump) {
   background-color: rgba(255, 213, 79, 0.55);
   color: inherit;
+}
+
+/* 最高法院引用括號附記的長駐高亮：renderSidebar 將所有 citeRange 註冊為
+ * 'fint-citation'。使用柔和的天藍灰底，在三種來源主題色下皆具備足夠對比
+ * 又不會喧賓奪主，與 fint-jump 鵝黃可同時顯示而不衝色。 */
+::highlight(fint-citation) {
+  background-color: rgba(120, 170, 230, 0.35);
+  color: inherit;
+}
+
+/* ----- 參照頁籤：最高法院引文清單 ----- */
+#fint-outline-sidebar .fint-citations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 參照項目容器：水平分兩塊 —— 左側跳轉主按鈕、右側匯入卡片按鈕，共享
+ * 同一外框。內部兩個 <button> 各自掛 click handler，stopPropagation 避免
+ * 互相觸發。 */
+#fint-outline-sidebar .fint-citation-item {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--fint-border);
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+#fint-outline-sidebar .fint-citation-item:hover {
+  border-color: var(--fint-primary);
+}
+
+/* 參照項目被點選（toggle on）時呈較實底的主題色外框，提示使用者「再點一次
+ * 可清除高亮」；與 hover 視覺區隔，避免誤以為仍在 hover 狀態。 */
+#fint-outline-sidebar .fint-citation-item[data-active="1"] {
+  background: var(--fint-primary-soft);
+  border-color: var(--fint-primary);
+  box-shadow: inset 0 0 0 1px var(--fint-primary);
+}
+
+/* 跳轉主按鈕：佔滿左側剩餘寬度，點擊捲動至被引段落。 */
+#fint-outline-sidebar .fint-citation-jump {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#fint-outline-sidebar .fint-citation-jump:hover {
+  background: var(--fint-primary-soft);
+}
+
+/* 匯入卡片按鈕：右側細長直欄，點擊將該段意旨匯入判決剪貼簿。 */
+#fint-outline-sidebar .fint-citation-import {
+  all: unset;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-left: 1px solid var(--fint-border);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--fint-primary);
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+#fint-outline-sidebar .fint-citation-import:hover {
+  background: var(--fint-primary);
+  color: #ffffff;
+}
+
+#fint-outline-sidebar .fint-citation-import:active {
+  background: var(--fint-primary-dark);
+  color: #ffffff;
+}
+
+#fint-outline-sidebar .fint-citation-num {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--fint-primary);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  margin-top: 1px;
+}
+
+#fint-outline-sidebar .fint-citation-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+#fint-outline-sidebar .fint-citation-cases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+#fint-outline-sidebar .fint-citation-badge {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--fint-primary-soft);
+  color: var(--fint-primary-dark);
+  border: 1px solid var(--fint-border);
+  white-space: nowrap;
+}
+
+/* 大法庭裁定以較深底色凸顯統一見解效力；庭會議決議採中性灰，與判決
+ * 類別區隔但不搶眼。 */
+#fint-outline-sidebar .fint-citation-badge-grand {
+  background: #fef3c7;
+  color: #78350f;
+  border-color: #fde68a;
+  font-weight: 600;
+}
+
+#fint-outline-sidebar .fint-citation-badge-resolution {
+  background: #eef2f7;
+  color: #334155;
+  border-color: #d7dee8;
+}
+
+/* 法律座談會決議（高院暨所屬法院／高院分院／最高法院／司法院等）採紫紅
+ * 底色，與判決／大法庭／庭會議三類視覺明顯區分；紫色傳統上在法律語境
+ * 亦與研究、學說意見連結，契合 symposium 的性質。 */
+#fint-outline-sidebar .fint-citation-badge-symposium {
+  background: #f3e8ff;
+  color: #5b21b6;
+  border-color: #e9d5ff;
+}
+
+/* 大法官釋字解釋：深玫瑰紅底，最高權威層級之標示，在所有 badge 中最為
+ * 醒目；與憲法法庭判決色系同調但更飽和，反映釋字係舊制中最終拘束見解。 */
+#fint-outline-sidebar .fint-citation-badge-interpretation {
+  background: #fce7f3;
+  color: #9d174d;
+  border-color: #fbcfe8;
+  font-weight: 600;
+}
+
+/* 憲法法庭判決／裁定（2022 年憲訴法施行後）：沿用釋字色系的較淺變體，
+ * 視覺上與釋字同屬憲法層級而又可區別新舊制。 */
+#fint-outline-sidebar .fint-citation-badge-constitutional {
+  background: #fdf2f8;
+  color: #be185d;
+  border-color: #fbcfe8;
+  font-weight: 600;
+}
+
+/* 最高行政法院庭長法官聯席會議決議：青綠底，與最高法院庭會議（中性灰）
+ * 區隔但維持「決議」性質的樸素視覺調性。 */
+#fint-outline-sidebar .fint-citation-badge-admin {
+  background: #e0f2f1;
+  color: #115e59;
+  border-color: #b2dfdb;
+}
+
+#fint-outline-sidebar .fint-citation-preview {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #475569;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }

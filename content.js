@@ -1,23 +1,29 @@
 // 司法院裁判書閱讀助手 — content script
 //
 // 支援網域：
-//   legal.judicial.gov.tw/FINT/*    (法令判解系統)
-//   judgment.judicial.gov.tw/FJUD/* (裁判書系統)
-//   legal.law.intraj/FINT/*         (內網判解函釋)
-//   judgment.law.intraj/FJUD/*      (內網裁判書系統)
+//   legal.judicial.gov.tw/FINT/*    （法令判解系統）
+//   judgment.judicial.gov.tw/FJUD/* （裁判書系統）
+//   legal.law.intraj/FINT/*         （內網判解函釋）
+//   judgment.law.intraj/FJUD/*      （內網裁判書系統）
 //
-// 三件事：
-//   1. 在左側固定一個「判決架構」卡片（hover tab），掃描正文內容的層級標記
-//      （壹、一、(一)、㈠...）與主文／事實／理由／附表等章段，點擊 scroll 到
-//      對應段落。
-//   2. 攔截 copy 事件：將選取文字的分行壓縮成單行，於尾端附上
-//      「（<裁判字號>意旨參照）」後寫入剪貼簿（Win/Mac 通用）。
-//      同時攔截 cut 事件，提供 Cmd/Ctrl+X「僅複製不存入剪貼簿卡片」的
-//      使用情境。
-//   3. 裁判字號從頁面「裁判字號：」欄位擷取後移除所有空白。
+// 四項主要功能：
+//   1. 於頁面側緣注入「判決架構」卡片（以滑鼠停駐式頁籤呈現），偵測正
+//      文之階層編號（壹、一、(一)、㈠⋯）與主文／事實／理由／附表等章
+//      段，點擊即平滑捲動至對應段落。
+//   2. 於同一側邊欄另設「參照」頁籤，抽取正文所有裁判意旨引用（最高法
+//      院判決／裁定、最高法院大法庭裁定、最高法院民刑事庭會議決議、
+//      法律座談會決議、大法官釋字解釋、憲法法庭判決及最高行政法院庭
+//      長法官聯席會議決議共七類），列出每筆意旨段落摘要、案號清單、
+//      跳轉按鈕與複製按鈕；正文之括號附記同步以 CSS Highlight API 長
+//      駐高亮。
+//   3. 攔截 copy 事件：將選取文字之換行壓縮為單行，於尾端附上「（<裁
+//      判字號>意旨參照）」後寫入系統剪貼簿（Windows／macOS 通用）。
+//      另攔截 cut 事件，提供 Cmd／Ctrl+X「僅複製、不存入剪貼簿卡片」
+//      之情境。
+//   4. 裁判字號自頁面「裁判字號：」欄位擷取後移除所有空白。
 //
-// 不修改頁面排版 — 只在文字節點中插入隱形 <span id> 當錨點，不會影響任何
-// 既有的縮排 / 斷行。
+// 不改動頁面排版——僅於文字節點插入隱形 <span id> 作為錨點，不影響
+// 任何既有之縮排或斷行。
 
 (function () {
   'use strict'
@@ -44,10 +50,19 @@
   //   4 = +1./⒈/１．             5 = +(1)/⑴/（１）       6 = +①/②/③
   // 預設停在 3 = 三層大綱，多數判決閱讀已足夠。
   let userMaxDepth = 3
+  // 參照耳標開關：控制是否渲染「參照」頁籤與正文引文長駐高亮。預設開啟；
+  // 關閉後僅保留「判決架構」耳標，適合不熟悉或不想看到最高法院引用清單
+  // 的使用者。
+  let userShowCitations = true
   const positionsReady = new Promise((resolve) => {
     try {
       chrome.storage.sync.get(
-        { positions: userPositions, appendCitation: true, maxDepth: 3 },
+        {
+          positions: userPositions,
+          appendCitation: true,
+          maxDepth: 3,
+          showCitations: true,
+        },
         (result) => {
           if (result && result.positions) {
             userPositions = Object.assign({}, userPositions, result.positions)
@@ -57,6 +72,9 @@
           }
           if (result && typeof result.maxDepth === 'number') {
             userMaxDepth = clampDepth(result.maxDepth)
+          }
+          if (result && typeof result.showCitations === 'boolean') {
+            userShowCitations = result.showCitations
           }
           resolve()
         },
@@ -84,6 +102,10 @@
       }
       if (changes.maxDepth) {
         userMaxDepth = clampDepth(changes.maxDepth.newValue)
+        needsRerender = true
+      }
+      if (changes.showCitations) {
+        userShowCitations = changes.showCitations.newValue !== false
         needsRerender = true
       }
       if (needsRerender) {
@@ -156,6 +178,30 @@
       if (pattern.test(trimmed)) return level
     }
     return null
+  }
+
+  // 於 text[pos..bound) 開頭依序剝除任意階層項目符號（壹/一/(一)/1./㈠/⒈/
+  // ⑴/① 等），回傳越過 marker 與其後空白之新起點。用於計算意旨段落的
+  // 起始位置時跳過編號字首，使參照 jumpRange 從正文第一字起算而非包含
+  // 項目符號本身。重複比對以因應極少見的巢狀起首（如「一、(一)按…」）。
+  function skipEnumerationMarkers(text, pos, bound) {
+    let p = pos
+    while (p < bound) {
+      while (p < bound && /[\s\u3000]/.test(text.charAt(p))) p++
+      if (p >= bound) break
+      const head = text.slice(p, Math.min(p + 24, bound))
+      let matchedLen = 0
+      for (const { pattern } of HIERARCHY_PATTERNS) {
+        const m = head.match(pattern)
+        if (m) {
+          matchedLen = m[0].length
+          break
+        }
+      }
+      if (!matchedLen) break
+      p += matchedLen
+    }
+    return p
   }
 
   function shortenLabel(text, max) {
@@ -484,12 +530,567 @@
     return inserted
   }
 
+  // ----- Citation extraction (裁判意旨參照) -----
+  //
+  // 抽取判決正文中之常見權威意旨引用，包括：
+  //   A. 最高法院判決／裁定：最高法院XX年度台（上|非|抗|聲|覆）字第XXX號
+  //   B. 最高法院大法庭裁定：最高法院（刑事|民事）?大法庭XX年度台（上|抗|非）大字第XXX號
+  //   C. 最高法院庭會議決議：最高法院XX年度第N次（民事|刑事|民刑事）庭會議決議／決定
+  //      （含「第6、7次」這類單筆引用涵蓋多場會議之寫法）
+  //   D. 法律座談會決議：本院暨所屬法院／臺灣高等法院（分院）／最高法院／司法院
+  //      XX年法律座談會（民事|刑事|民執|刑執...）類提案第N號（決議|審查意見|研究意見...）
+  //   E. 大法官釋字解釋：司法院釋字第N號解釋（2022 年憲法訴訟法施行前之舊制）
+  //   F. 憲法法庭判決／裁定：憲法法庭XX年憲（判|裁|暫|補）字第N號判決／裁定
+  //      （2022 年憲法訴訟法施行後之新制）
+  //   G. 最高行政法院庭長法官聯席會議決議：本院／最高行政法院XX年度
+  //      （M月份）?第N次庭長法官聯席會議決議（對應行政訴訟之權威見解）
+  //
+  // 架構採「全文掃描 + 鄰近分群」而非「括號內掃描」，以同時涵蓋以下兩種
+  // 實務寫法：
+  //   A. 括號式：…（最高法院112年度台上字第187號判決意旨參照）。
+  //   B. 行內式：有最高法院90年度台上字第1639號、第2215號、94年度台上字
+  //              第115號、第2059號判決要旨，及同院95年4月4日95年度第5次
+  //              民事庭決議可參。
+  //
+  // 解析流程：
+  //   1. 將容器 DOM 扁平化為單一字串 full 與 segments。
+  //   2. 以 7 支案號 regex 於 full 上全文比對，GC 先於 JUD（「大字」同吻合
+  //      「字」之特徵，須保留 GC 佔用區間以濾除 JUD 重複匹配）。
+  //   3. 鄰近分群：相鄰兩筆匹配之間的 gap 若 ≤ MAX_GROUP_GAP 字且不含 \n
+  //      或 。，視為同一引文條目；跨段或跨句自動切為新條目。
+  //   4. 每一條目：
+  //      - citeRange.end 向後貪婪擷取 尾隨結論語（判決意旨參照／要旨可參／
+  //        可資參照／足資參照 等），再貪婪擷取鄰近之 `）`；
+  //      - citeRange.start 向前貪婪擷取鄰近之 `（`；
+  //      - opinionStart 預設為段落起點（最近 \n 之後）；若前一條目落於
+  //        同段落內，則以前一條目之結尾為起點（避免第二、三則引用重複
+  //        覆蓋段首共同前言）。
+  //
+  // 為每一筆引文建立兩組 Live Range：
+  //   jumpRange — 涵蓋意旨段落起點至條目結束位置，側邊欄點擊時以
+  //               scrollAndHighlightRange 捲動 + 暫態高亮，讓使用者一眼
+  //               看到完整被引段落。
+  //   citeRange — 僅含引文本身（括號附記或行內案號串），註冊到
+  //               CSS.highlights('fint-citation') 作為長駐高亮，閱讀時
+  //               可快速掃到。
+  //
+  // 不插入任何 <span> 錨點（Live Range 會隨後續 splitText 自動修正），避免
+  // 與 annotateAnchors 的錨點插入互相干擾。
+  //
+  // 案號 regex kind 標記：
+  //   'grand' | 'judgment' | 'resolution' | 'symposium' |
+  //   'interpretation' | 'constitutional' | 'admin'
+  //   label 為呈現用的案號字串（保留原文前綴，如「本院暨所屬法院」）。
+  // 大法庭裁定的「大字」會同時吻合一般判決的「字」規則，因此先跑 GC_RE，
+  // 再將其佔用區間從後續兩組 regex 過濾掉，避免重複抓。
+  const GC_CASE_RE =
+    /(?:最高法院)?[\s\u3000]*(?:(刑事|民事)?[\s\u3000]*大法庭)[\s\u3000]*(\d+)[\s\u3000]*年[\s\u3000]*度?[\s\u3000]*台[\s\u3000]*(上|抗|非)[\s\u3000]*大[\s\u3000]*字[\s\u3000]*第?[\s\u3000]*(\d+)[\s\u3000]*號(?:[\s\u3000]*(判決|裁定))?/g
+  const JUD_CASE_RE =
+    /(?:最高法院[\s\u3000]*)?(\d+)[\s\u3000]*年[\s\u3000]*度?[\s\u3000]*台[\s\u3000]*(上|非|抗|聲|覆)[\s\u3000]*字[\s\u3000]*第?[\s\u3000]*(\d+)[\s\u3000]*號(?:[\s\u3000]*(判決|裁定))?/g
+  // RES 之第 N 次編號允許「第6、7次」多場合寫法，以 \d+(?:、\d+)* 捕獲整組
+  // 數字串，label 時原樣保留。
+  const RES_CASE_RE =
+    /(?:最高法院[\s\u3000]*)?(\d+)[\s\u3000]*年[\s\u3000]*度?[\s\u3000]*第[\s\u3000]*(\d+(?:[\s\u3000]*[、,][\s\u3000]*\d+)*)[\s\u3000]*次[\s\u3000]*(民事|刑事|民刑事)[\s\u3000]*庭[\s\u3000]*(?:總?會議)?(?:[\s\u3000]*(決議|決定))?/g
+  // SYM 法律座談會：
+  //   court prefix 強制需為以下清單之一（本院／臺灣高等法院（含四個分院）／
+  //   最高法院／司法院），配合 optional「暨所屬法院」後綴；避免把其他文字
+  //   誤當成 symposium 的開頭。
+  //   category 涵蓋常見類別（民事／刑事／民執／刑執／家事／少年／強制執行／非訟）
+  //   motion 多為「提案」，亦見「研究案／審議案」
+  //   dispo 多為「決議」，亦見「決定／審查意見／研究意見／研究結果／結論」
+  const SYM_CASE_RE =
+    /((?:本院(?:暨[\s\u3000]*所屬[\s\u3000]*法院)?|(?:臺灣|台灣)高等法院(?:(?:臺中|高雄|花蓮|金門)分院)?(?:暨[\s\u3000]*所屬[\s\u3000]*法院)?|最高法院|司法院))[\s\u3000]*(\d+)[\s\u3000]*年(?:[\s\u3000]*度)?[\s\u3000]*法律座談會[\s\u3000]*((?:民事|刑事|民執|刑執|家事|少年|強制執行|非訟)類)?[\s\u3000]*(提案|研究案|審議案)?[\s\u3000]*第[\s\u3000]*(\d+)[\s\u3000]*號(?:[\s\u3000]*(決議|決定|審查意見|研究意見|研究結果|結論))?/g
+  // INT 大法官釋字解釋：
+  //   前綴「司法院」/「大法官」皆為可選，僅憑「釋字」特徵字即足以識別；
+  //   釋字解釋號次歷來由 1 持續累加至 813 號後停發（2022 年憲訴法施行），
+  //   故不需年度欄位。label 一律正規化為「司法院釋字第N號解釋」。
+  const INT_CASE_RE =
+    /(?:司法院[\s\u3000]*)?(?:大法官[\s\u3000]*)?釋字[\s\u3000]*第[\s\u3000]*(\d+)[\s\u3000]*號(?:[\s\u3000]*解釋)?/g
+  // CON 憲法法庭判決／裁定／暫時處分／補充判決：
+  //   前綴「司法院」與「憲法法庭」任一皆可（實務兩種寫法並存），以 * 允許
+  //   兩者同時出現或皆略去；字別涵蓋 憲判字／憲裁字／憲暫字／憲補字。
+  //   label 一律正規化為「憲法法庭XX年憲X字第N號{判決|裁定|暫時處分|補充判決}」。
+  const CON_CASE_RE =
+    /(?:(?:司法院|憲法法庭)[\s\u3000]*)*(\d+)[\s\u3000]*年(?:[\s\u3000]*度)?[\s\u3000]*憲[\s\u3000]*(判|裁|暫|補)[\s\u3000]*字[\s\u3000]*第[\s\u3000]*(\d+)[\s\u3000]*號(?:[\s\u3000]*(判決|裁定))?/g
+  // ADMIN 最高行政法院庭長法官聯席會議決議：
+  //   最高行政法院之權威見解統一以「庭長法官聯席會議決議」形式發布，結構
+  //   與最高法院之「民刑事庭會議」不同，故另立一類。year 後可有「M月份」
+  //   副標（如 98年度6月份第1次）；次數允許「第N、M次」多次編號。
+  //   label 保留原文前綴（「本院」或「最高行政法院」），避免誤標其他行政
+  //   法院之自引。
+  const ADMIN_CASE_RE =
+    /(最高行政法院|本院)[\s\u3000]*(\d+)[\s\u3000]*年(?:[\s\u3000]*度)?[\s\u3000]*(?:(\d+)[\s\u3000]*月份)?[\s\u3000]*第[\s\u3000]*(\d+(?:[\s\u3000]*[、,][\s\u3000]*\d+)*)[\s\u3000]*次[\s\u3000]*庭長法官聯席會議(?:[\s\u3000]*(決議|決定))?/g
+
+  function rangesOverlap(aStart, aEnd, ranges) {
+    for (const [s, e] of ranges) {
+      if (!(aEnd <= s || aStart >= e)) return true
+    }
+    return false
+  }
+
+  // 全文掃描所有案號 regex，以 GC > JUD 優先序保留佔用區間解決「大字/字」
+  // 特徵衝突，其他類別之間結構不重疊。回傳依起點排序的 match 陣列：
+  //   [{ kind, label, sortKey, start, end }, ...]
+  function collectCaseMatches(full) {
+    const out = []
+    const occupied = []
+
+    const pushNonOverlap = (start, end, caseObj) => {
+      if (rangesOverlap(start, end, occupied)) return
+      occupied.push([start, end])
+      out.push({ start, end, ...caseObj })
+    }
+
+    // Pass 1: 大法庭裁定
+    for (const m of full.matchAll(GC_CASE_RE)) {
+      const [mtxt, chamber, year, word, no, dispo] = m
+      const start = m.index
+      const end = start + mtxt.length
+      pushNonOverlap(start, end, {
+        kind: 'grand',
+        label: `最高法院${chamber || ''}大法庭${year}年度台${word}大字第${no}號${dispo || '裁定'}`,
+        sortKey: `1-${String(year).padStart(4, '0')}-${word}-${String(no).padStart(6, '0')}`,
+      })
+    }
+    // Pass 2: 一般判決／裁定
+    for (const m of full.matchAll(JUD_CASE_RE)) {
+      const [mtxt, year, word, no, dispo] = m
+      const start = m.index
+      const end = start + mtxt.length
+      pushNonOverlap(start, end, {
+        kind: 'judgment',
+        label: `最高法院${year}年度台${word}字第${no}號${dispo || '判決'}`,
+        sortKey: `2-${String(year).padStart(4, '0')}-${word}-${String(no).padStart(6, '0')}`,
+      })
+    }
+    // Pass 3: 最高法院民刑事庭會議決議
+    for (const m of full.matchAll(RES_CASE_RE)) {
+      const [mtxt, year, nth, chamber, dispo] = m
+      const start = m.index
+      const end = start + mtxt.length
+      const firstNo = String(nth).split(/[、,]/)[0].trim()
+      pushNonOverlap(start, end, {
+        kind: 'resolution',
+        label: `最高法院${year}年度第${nth}次${chamber}庭會議${dispo || '決議'}`,
+        sortKey: `3-${String(year).padStart(4, '0')}-${chamber}-${firstNo.padStart(3, '0')}`,
+      })
+    }
+    // Pass 4: 法律座談會
+    for (const m of full.matchAll(SYM_CASE_RE)) {
+      const [mtxt, prefixRaw, year, category, motion, no, dispo] = m
+      const start = m.index
+      const end = start + mtxt.length
+      const prefix = (prefixRaw || '').replace(/[\s\u3000]+/g, '')
+      pushNonOverlap(start, end, {
+        kind: 'symposium',
+        label: `${prefix}${year}年法律座談會${category || ''}${motion || '提案'}第${no}號${dispo || '決議'}`,
+        sortKey: `4-${String(year).padStart(4, '0')}-${prefix}-${String(no).padStart(4, '0')}`,
+      })
+    }
+    // Pass 5: 大法官釋字
+    for (const m of full.matchAll(INT_CASE_RE)) {
+      const [mtxt, no] = m
+      const start = m.index
+      const end = start + mtxt.length
+      pushNonOverlap(start, end, {
+        kind: 'interpretation',
+        label: `司法院釋字第${no}號解釋`,
+        sortKey: `5-${String(no).padStart(4, '0')}`,
+      })
+    }
+    // Pass 6: 憲法法庭
+    const dispoDefault = { 判: '判決', 裁: '裁定', 暫: '暫時處分', 補: '補充判決' }
+    for (const m of full.matchAll(CON_CASE_RE)) {
+      const [mtxt, year, charWord, no, dispo] = m
+      const start = m.index
+      const end = start + mtxt.length
+      pushNonOverlap(start, end, {
+        kind: 'constitutional',
+        label: `憲法法庭${year}年憲${charWord}字第${no}號${dispo || dispoDefault[charWord] || '判決'}`,
+        sortKey: `6-${String(year).padStart(4, '0')}-${charWord}-${String(no).padStart(4, '0')}`,
+      })
+    }
+    // Pass 7: 最高行政法院庭長法官聯席會議
+    for (const m of full.matchAll(ADMIN_CASE_RE)) {
+      const [mtxt, prefixRaw, year, month, nth, dispo] = m
+      const start = m.index
+      const end = start + mtxt.length
+      const prefix = (prefixRaw || '').replace(/[\s\u3000]+/g, '')
+      const monthPart = month ? `${month}月份` : ''
+      const firstNo = String(nth).split(/[、,]/)[0].trim()
+      pushNonOverlap(start, end, {
+        kind: 'admin',
+        label: `${prefix}${year}年度${monthPart}第${nth}次庭長法官聯席會議${dispo || '決議'}`,
+        sortKey: `7-${String(year).padStart(4, '0')}-${firstNo.padStart(3, '0')}`,
+      })
+    }
+
+    out.sort((a, b) => a.start - b.start)
+    return out
+  }
+
+  // 引文結尾結論語解析：
+  //   grammar = (等)? (判決|裁定|決議|解釋|判例)? (意旨|要旨)? CONCLUDER
+  // CONCLUDER（「強結論語」）為實務上表示「引用此見解」之定型結尾詞。
+  // 用途：
+  //   1. 為已接受之引文擴張 citeRange，將結論語納入長駐高亮範圍。
+  //   2. 對行內式（無括號包裹）引文，強結論語是唯一接受依據 — 若結尾無
+  //      結論語，則視為反駁或討論性引用（如「…援引最高法院XX決議，惟
+  //      該決議…」「…所引用之XXX…均屬…之前，應無可採」）予以剔除，
+  //      避免把法院正在排斥的先例也標示為參照。
+  // 括號式引文以 `（…）` 本身為引文定型標記，即便內部無結論語亦接受。
+  const STRONG_CONCLUDERS = [
+    '同此意旨',
+    '同此旨',
+    '意旨參照',
+    '要旨參照',
+    '意旨可參',
+    '要旨可參',
+    '可資參照',
+    '足資參照',
+    '參照',
+    '可參',
+    '參看',
+    '同旨',
+  ]
+  const CONCLUSION_PREFIXES = ['判決', '裁定', '決議', '解釋', '判例']
+  const CONCLUSION_IDX = ['意旨', '要旨']
+
+  function consumeConclusion(full, origEnd) {
+    let p = origEnd
+    const skipWs = () => {
+      while (p < full.length && /[\s\u3000]/.test(full.charAt(p))) p++
+    }
+    skipWs()
+    // 可選之「等」前綴（如「…號等判決意旨參照」）
+    if (p < full.length && full.charAt(p) === '等') {
+      p++
+      skipWs()
+    }
+    // 可選之文書類別前綴
+    for (const w of CONCLUSION_PREFIXES) {
+      if (full.startsWith(w, p)) {
+        p += w.length
+        break
+      }
+    }
+    skipWs()
+    // 可選之「意旨／要旨」指示詞
+    for (const w of CONCLUSION_IDX) {
+      if (full.startsWith(w, p)) {
+        p += w.length
+        break
+      }
+    }
+    skipWs()
+    // 必要：強結論語。長→短順序嘗試（STRONG_CONCLUDERS 已預排）。
+    for (const w of STRONG_CONCLUDERS) {
+      if (full.startsWith(w, p)) {
+        return { end: p + w.length, strong: true }
+      }
+    }
+    return { end: origEnd, strong: false }
+  }
+
+  // 判斷範圍是否被括號包裹（左右各有 `（`／`(` 及 `）`／`)`，僅以空白間隔
+  // 亦算）。括號包裹者視為定型引文定型標記，可免要求強結論語。
+  function maybeExpandToParens(full, s, e) {
+    let left = s - 1
+    while (left >= 0 && /[\s\u3000]/.test(full.charAt(left))) left--
+    const hasLeft =
+      left >= 0 && (full.charAt(left) === '（' || full.charAt(left) === '(')
+    let right = e
+    while (right < full.length && /[\s\u3000]/.test(full.charAt(right))) right++
+    const hasRight =
+      right < full.length &&
+      (full.charAt(right) === '）' || full.charAt(right) === ')')
+    const paren = hasLeft && hasRight
+    return {
+      start: paren ? left : s,
+      end: paren ? right + 1 : e,
+      paren,
+    }
+  }
+
+  function extractCitations(container) {
+    if (!container) return []
+
+    const BLOCK_TAGS =
+      /^(DIV|P|PRE|LI|UL|OL|TABLE|TR|TD|TH|H[1-6]|SECTION|ARTICLE|BLOCKQUOTE)$/i
+
+    const segments = []
+    let full = ''
+    const ensureNewline = () => {
+      if (full && !full.endsWith('\n')) full += '\n'
+    }
+    const walk = (el) => {
+      for (const child of el.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const v = child.nodeValue || ''
+          if (!v) continue
+          segments.push({
+            node: child,
+            start: full.length,
+            end: full.length + v.length,
+          })
+          full += v
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const tag = child.tagName
+          if (tag === 'BR') {
+            ensureNewline()
+            continue
+          }
+          if (tag === 'SCRIPT' || tag === 'STYLE') continue
+          const isBlock = BLOCK_TAGS.test(tag)
+          if (isBlock) ensureNewline()
+          walk(child)
+          if (isBlock) ensureNewline()
+        }
+      }
+    }
+    walk(container)
+    if (!full.trim()) return []
+
+    // FJUD／FINT 以 <pre>-like CSS 顯示判決正文，文字節點內常含「換行 + 4
+    // 空白縮排」之軟斷行（如 `最高法\n    院67年度...`），會打斷 regex 的
+    // 關鍵字比對。為此建立：
+    //   searchFull      — 移除所有空白字元（含 \n、全形空白）之壓縮字串
+    //   searchToFull[i] — searchFull 第 i 個字元對應到 full 之原始索引
+    // Regex 於 searchFull 比對；結束後再以 searchToFull 把 search 範圍映
+    // 射回 full，交給 locate/Range 以正確定位 DOM 位置。
+    let searchFull = ''
+    const searchToFull = []
+    for (let i = 0; i < full.length; i++) {
+      const ch = full.charAt(i)
+      if (!/[\s\u3000]/.test(ch)) {
+        searchFull += ch
+        searchToFull.push(i)
+      }
+    }
+    if (!searchFull) return []
+
+    // 將 searchFull 之 [ss, se) 半開區間映射回 full 之 [fs, fe) 半開區間。
+    const toFullRange = (ss, se) => {
+      if (se <= ss) return { fullStart: searchToFull[ss] || 0, fullEnd: searchToFull[ss] || 0 }
+      const fs = searchToFull[ss]
+      const fe = searchToFull[se - 1] + 1
+      return { fullStart: fs, fullEnd: fe }
+    }
+
+    // Stage 1: 於 searchFull 跑 7 類案號 regex
+    const matches = collectCaseMatches(searchFull)
+    if (!matches.length) return []
+
+    // Stage 2: 鄰近分群
+    //   - gap 長度檢查（≤ MAX_GROUP_GAP）以 searchFull 座標計算（因軟斷行
+    //     的空白已被壓縮，此長度即「實質字距」）。
+    //   - `。` 檢查亦於 searchFull（`。` 非空白，未被剔除）。
+    //   - `\n` 檢查需於 full：對應之 fullGap 區間若含 \n 表示跨段。
+    const MAX_GROUP_GAP = 50
+    const groups = []
+    for (const m of matches) {
+      const last = groups[groups.length - 1]
+      if (last) {
+        const gapS = searchFull.slice(last.end, m.start)
+        const lastEndFull = searchToFull[last.end - 1] + 1
+        const curStartFull = searchToFull[m.start]
+        const gapFull = full.slice(lastEndFull, curStartFull)
+        const hasBreak =
+          gapFull.indexOf('\n') !== -1 || gapS.indexOf('。') !== -1
+        if (!hasBreak && gapS.length <= MAX_GROUP_GAP) {
+          last.cases.push({
+            kind: m.kind,
+            label: m.label,
+            sortKey: m.sortKey,
+          })
+          last.end = m.end
+          continue
+        }
+      }
+      groups.push({
+        start: m.start,
+        end: m.end,
+        cases: [{ kind: m.kind, label: m.label, sortKey: m.sortKey }],
+      })
+    }
+
+    // Stage 3: consumeConclusion 與 maybeExpandToParens 均於 searchFull 上
+    // 執行（括號／結論語皆非空白，不受壓縮影響；且 searchFull 中關鍵字
+    // 為連續字元，strings.startsWith 直接命中）。
+    const acceptedGroups = []
+    for (const g of groups) {
+      const { end: newEnd, strong } = consumeConclusion(searchFull, g.end)
+      const expanded = maybeExpandToParens(searchFull, g.start, newEnd)
+      g.start = expanded.start
+      g.end = expanded.end
+      if (strong || expanded.paren) acceptedGroups.push(g)
+    }
+    if (!acceptedGroups.length) return []
+
+    // Stage 4: 將 search 座標映射回 full，並計算 opinionStart。
+    //   opinionStart 需於 full 上計算（需要 \n 當段落邊界）。
+    //   計算順序：
+    //     (1) 預設為最近 \n 之後（段落開頭）
+    //     (2) 若前一筆接受之引文落於同段落內，改以其結尾為起點
+    //     (3) 跳過銜接性空白與句末標點（。；;，,）
+    //     (4) 剝除段首階層項目符號（壹/一/(一)/1./㈠/⒈/⑴/①…），
+    //         使高亮不含編號本身，僅涵蓋實質意旨文字
+    let lastFullEnd = -1
+    for (const g of acceptedGroups) {
+      const { fullStart, fullEnd } = toFullRange(g.start, g.end)
+      g.fullStart = fullStart
+      g.fullEnd = fullEnd
+      const lastNl = full.lastIndexOf('\n', g.fullStart - 1)
+      const paraStart = lastNl === -1 ? 0 : lastNl + 1
+      let opStart = paraStart
+      if (lastFullEnd > paraStart && lastFullEnd < g.fullStart) {
+        opStart = lastFullEnd
+      }
+      while (
+        opStart < g.fullStart &&
+        /[\s\u3000。；;，,]/.test(full.charAt(opStart))
+      ) {
+        opStart++
+      }
+      opStart = skipEnumerationMarkers(full, opStart, g.fullStart)
+      g.opinionFullStart = opStart
+      lastFullEnd = g.fullEnd
+    }
+
+    // Stage 5: 以 segments 將 full 座標定位為 (node, offset)，建立 Live Range。
+    const ownerDoc = container.ownerDocument || document
+    const locate = (pos) => {
+      for (const seg of segments) {
+        if (pos >= seg.start && pos < seg.end) {
+          return { node: seg.node, offset: pos - seg.start }
+        }
+      }
+      for (const seg of segments) {
+        if (seg.start >= pos) return { node: seg.node, offset: 0 }
+      }
+      if (segments.length) {
+        const last = segments[segments.length - 1]
+        return {
+          node: last.node,
+          offset: (last.node.nodeValue || '').length,
+        }
+      }
+      return null
+    }
+
+    const result = []
+    for (const g of acceptedGroups) {
+      const osLoc = locate(g.opinionFullStart) || locate(g.fullStart)
+      const psLoc = locate(g.fullStart)
+      const peLoc = locate(g.fullEnd - 1)
+      if (!osLoc || !psLoc || !peLoc) continue
+
+      let jumpRange = null
+      let citeRange = null
+      try {
+        jumpRange = ownerDoc.createRange()
+        jumpRange.setStart(osLoc.node, osLoc.offset)
+        const peLen = (peLoc.node.nodeValue || '').length
+        jumpRange.setEnd(peLoc.node, Math.min(peLoc.offset + 1, peLen))
+
+        citeRange = ownerDoc.createRange()
+        citeRange.setStart(psLoc.node, psLoc.offset)
+        citeRange.setEnd(peLoc.node, Math.min(peLoc.offset + 1, peLen))
+      } catch (_) {
+        jumpRange = null
+        citeRange = null
+      }
+      if (!jumpRange || !citeRange) continue
+
+      const excerpt = full
+        .slice(g.opinionFullStart, g.fullEnd)
+        .replace(/\s+/g, '')
+        .trim()
+
+      result.push({
+        jumpRange,
+        citeRange,
+        cases: g.cases,
+        excerpt,
+      })
+    }
+
+    return result
+  }
+
   // ----- Sidebar rendering -----
-  function renderSidebar(items) {
+
+  // 將文件內的元素滾動至適當位置（扣掉 sticky header 高度），供「判決架構」
+  // 頁籤點擊 anchor 使用；與舊版 inline 實作完全等價。
+  function scrollToTargetElement(target) {
+    if (!target) return
+    const HEADER_OFFSET = 120
+    const inIframe = window !== window.top
+    try {
+      if (inIframe) {
+        const topWin = hostDoc.defaultView || window
+        let y = target.getBoundingClientRect().top
+        let w = window
+        while (w !== topWin && w.frameElement) {
+          y += w.frameElement.getBoundingClientRect().top
+          w = w.parent
+        }
+        const desired = topWin.scrollY + y - HEADER_OFFSET
+        topWin.scrollTo({
+          top: desired,
+          left: topWin.scrollX,
+          behavior: 'smooth',
+        })
+      } else {
+        let scroller = null
+        let p = target.parentElement
+        while (p) {
+          const st = getComputedStyle(p)
+          if (
+            (st.overflowY === 'auto' || st.overflowY === 'scroll') &&
+            p.scrollHeight > p.clientHeight + 1
+          ) {
+            scroller = p
+            break
+          }
+          p = p.parentElement
+        }
+        if (scroller) {
+          const tRect = target.getBoundingClientRect()
+          const sRect = scroller.getBoundingClientRect()
+          scroller.scrollTo({
+            top: scroller.scrollTop + (tRect.top - sRect.top) - HEADER_OFFSET,
+            left: scroller.scrollLeft,
+            behavior: 'smooth',
+          })
+        } else {
+          window.scrollTo({
+            top:
+              window.scrollY + target.getBoundingClientRect().top - HEADER_OFFSET,
+            left: window.scrollX,
+            behavior: 'smooth',
+          })
+        }
+      }
+    } catch (_) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  function shortenExcerpt(text, max) {
+    max = max || 90
+    if (!text) return ''
+    const collapsed = text.replace(/\s+/g, '').trim()
+    if (collapsed.length <= max) return collapsed
+    return collapsed.slice(0, max) + '…'
+  }
+
+  function renderSidebar(items, citations) {
     // 依使用者設定套用最大展開深度。User-facing 深度 1–6 對應內部 level
     // 0–5，filter 條件等價於 level < userMaxDepth。被過濾掉的 anchor 仍
     // 保留於 DOM，以便日後展開不需重新偵測。
     items = (items || []).filter((it) => (it.level || 0) < userMaxDepth)
+    citations = citations || []
 
     // 清掉既有的 sidebar + toast：父層 default.aspx 不會隨 iframe 導航重載，
     // 殘留的 DOM 會指向已失效的 iframe anchor。
@@ -531,24 +1132,29 @@
     const maxLevel = items.reduce((m, it) => Math.max(m, it.level || 0), 0)
     aside.dataset.depth = String(maxLevel)
 
-    const tab = hostDoc.createElement('div')
-    tab.className = 'fint-outline-tab'
-    tab.textContent = '判決架構'
-    aside.appendChild(tab)
+    // ----- 頁籤一：判決架構 -----
+    const outlineGroup = hostDoc.createElement('div')
+    outlineGroup.className = 'fint-tab-group'
+    outlineGroup.dataset.group = 'outline'
 
-    const card = hostDoc.createElement('div')
-    card.className = 'fint-outline-card'
+    const outlineTab = hostDoc.createElement('div')
+    outlineTab.className = 'fint-outline-tab'
+    outlineTab.textContent = '判決架構'
+    outlineGroup.appendChild(outlineTab)
 
-    const head = hostDoc.createElement('div')
-    head.className = 'fint-outline-head'
-    head.textContent = '判決架構'
-    card.appendChild(head)
+    const outlineCard = hostDoc.createElement('div')
+    outlineCard.className = 'fint-outline-card'
+
+    const outlineHead = hostDoc.createElement('div')
+    outlineHead.className = 'fint-outline-head'
+    outlineHead.textContent = '判決架構'
+    outlineCard.appendChild(outlineHead)
 
     if (!items.length) {
       const empty = hostDoc.createElement('div')
       empty.className = 'fint-outline-empty'
       empty.textContent = '此頁未偵測到層級標記（壹、一、(一)、1. ...）'
-      card.appendChild(empty)
+      outlineCard.appendChild(empty)
     } else {
       const list = hostDoc.createElement('div')
       list.className = 'fint-outline-list'
@@ -561,63 +1167,147 @@
         btn.addEventListener('click', () => {
           const target = document.getElementById(item.id)
           if (!target) return
-          const HEADER_OFFSET = 120
-          const inIframe = window !== window.top
-
-          try {
-            if (inIframe) {
-              // FJUD / FINT: target is inside an iframe. Walk the frame chain
-              // up to the top window, compute absolute Y, scroll topWin once.
-              const topWin = hostDoc.defaultView || window
-              let y = target.getBoundingClientRect().top
-              let w = window
-              while (w !== topWin && w.frameElement) {
-                y += w.frameElement.getBoundingClientRect().top
-                w = w.parent
-              }
-              const desired = topWin.scrollY + y - HEADER_OFFSET
-              topWin.scrollTo({ top: desired, left: topWin.scrollX, behavior: 'smooth' })
-            } else {
-              // Top-level page (direct data.aspx access): find the nearest
-              // ancestor that is actually scrollable; fall back to window.
-              let scroller = null
-              let p = target.parentElement
-              while (p) {
-                const st = getComputedStyle(p)
-                if ((st.overflowY === 'auto' || st.overflowY === 'scroll') &&
-                    p.scrollHeight > p.clientHeight + 1) {
-                  scroller = p
-                  break
-                }
-                p = p.parentElement
-              }
-              if (scroller) {
-                const tRect = target.getBoundingClientRect()
-                const sRect = scroller.getBoundingClientRect()
-                scroller.scrollTo({
-                  top: scroller.scrollTop + (tRect.top - sRect.top) - HEADER_OFFSET,
-                  left: scroller.scrollLeft,
-                  behavior: 'smooth',
-                })
-              } else {
-                window.scrollTo({
-                  top: window.scrollY + target.getBoundingClientRect().top - HEADER_OFFSET,
-                  left: window.scrollX,
-                  behavior: 'smooth',
-                })
-              }
-            }
-          } catch (_) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }
+          scrollToTargetElement(target)
         })
         list.appendChild(btn)
       })
-      card.appendChild(list)
+      outlineCard.appendChild(list)
+    }
+    outlineGroup.appendChild(outlineCard)
+    aside.appendChild(outlineGroup)
+
+    // ----- 頁籤二：最高法院參照 -----
+    // 若此頁未偵測到任何最高法院引用，不渲染頁籤以保持側邊欄精簡。
+    if (citations.length) {
+      const citesGroup = hostDoc.createElement('div')
+      citesGroup.className = 'fint-tab-group'
+      citesGroup.dataset.group = 'citations'
+
+      const citesTab = hostDoc.createElement('div')
+      citesTab.className = 'fint-outline-tab fint-citations-tab'
+      citesTab.textContent = '參照'
+      citesGroup.appendChild(citesTab)
+
+      const citesCard = hostDoc.createElement('div')
+      citesCard.className = 'fint-outline-card fint-citations-card'
+
+      const citesHead = hostDoc.createElement('div')
+      citesHead.className = 'fint-outline-head'
+      citesHead.textContent = `意旨參照清單（共 ${citations.length} 則）`
+      citesCard.appendChild(citesHead)
+
+      const citesList = hostDoc.createElement('div')
+      citesList.className = 'fint-citations-list'
+
+      citations.forEach((cit, idx) => {
+        // 容器：div（非 button），內含「跳轉」與「匯入卡片」兩個獨立按鈕。
+        // data-active 紀錄當前是否為選中項（toggle 高亮狀態）。
+        const entry = hostDoc.createElement('div')
+        entry.className = 'fint-citation-item'
+        entry.dataset.active = '0'
+
+        // 主要點擊區：跳轉 + toggle 暫態高亮
+        const jumpBtn = hostDoc.createElement('button')
+        jumpBtn.type = 'button'
+        jumpBtn.className = 'fint-citation-jump'
+        jumpBtn.title = '點擊跳轉至被引段落；同項再點一次清除暫態高亮'
+
+        const num = hostDoc.createElement('span')
+        num.className = 'fint-citation-num'
+        num.textContent = String(idx + 1)
+        jumpBtn.appendChild(num)
+
+        const body = hostDoc.createElement('span')
+        body.className = 'fint-citation-body'
+
+        const casesRow = hostDoc.createElement('span')
+        casesRow.className = 'fint-citation-cases'
+        cit.cases.forEach((c) => {
+          const badge = hostDoc.createElement('span')
+          badge.className = 'fint-citation-badge fint-citation-badge-' + c.kind
+          badge.textContent = c.label
+          casesRow.appendChild(badge)
+        })
+        body.appendChild(casesRow)
+
+        const preview = hostDoc.createElement('span')
+        preview.className = 'fint-citation-preview'
+        preview.textContent = shortenExcerpt(cit.excerpt, 90)
+        body.appendChild(preview)
+
+        jumpBtn.appendChild(body)
+
+        jumpBtn.addEventListener('click', () => {
+          try {
+            // Toggle 行為：同一項再次點擊時清除 fint-jump 高亮；點擊不同項
+            // 則先清除其他項的 active 標記，再捲動並高亮該段落。以 DOM
+            // data-active 紀錄狀態，避免在 closure 裡另外維護模組級變數
+            // 導致跨次 renderSidebar 殘留狀態。
+            const active = entry.dataset.active === '1'
+            const list = entry.parentElement
+            if (list) {
+              list
+                .querySelectorAll('.fint-citation-item[data-active="1"]')
+                .forEach((el) => {
+                  el.dataset.active = '0'
+                })
+            }
+            if (active) {
+              clearJumpHighlight()
+            } else {
+              entry.dataset.active = '1'
+              scrollAndHighlightRange(cit.jumpRange)
+            }
+          } catch (_) {}
+        })
+
+        // 複製按鈕：將 jumpRange 文字寫入系統剪貼簿（視使用者設定決定
+        // 是否追加本篇裁判字號），並同步存入判決剪貼簿卡片清單。
+        const copyBtn = hostDoc.createElement('button')
+        copyBtn.type = 'button'
+        copyBtn.className = 'fint-citation-import'
+        copyBtn.title = '複製此意旨段落純文字並存入判決剪貼簿卡片'
+        copyBtn.setAttribute('aria-label', '複製')
+        copyBtn.textContent = '複製'
+        copyBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation()
+          copyCitationToClipboard(cit)
+        })
+
+        entry.appendChild(jumpBtn)
+        entry.appendChild(copyBtn)
+        citesList.appendChild(entry)
+      })
+
+      citesCard.appendChild(citesList)
+      citesGroup.appendChild(citesCard)
+      aside.appendChild(citesGroup)
     }
 
-    aside.appendChild(card)
     hostDoc.body.appendChild(aside)
+
+    // 註冊持續性高亮：將所有 citeRange 打包為單一 Highlight，註冊於正文所在
+    // document（iframe 內的 document），以 ::highlight(fint-citation) 套用
+    // 視覺樣式。每次 renderSidebar 都覆寫舊的註冊，避免跨次 init 累積。
+    try {
+      const targetDoc = document
+      if (
+        typeof Highlight !== 'undefined' &&
+        targetDoc.defaultView &&
+        targetDoc.defaultView.CSS &&
+        targetDoc.defaultView.CSS.highlights
+      ) {
+        if (citations.length) {
+          const ranges = citations
+            .map((c) => c.citeRange)
+            .filter((r) => r)
+          const hl = new Highlight(...ranges)
+          targetDoc.defaultView.CSS.highlights.set('fint-citation', hl)
+        } else {
+          targetDoc.defaultView.CSS.highlights.delete('fint-citation')
+        }
+      }
+    } catch (_) {}
   }
 
   // ----- 裁判字號 extraction -----
@@ -926,6 +1616,114 @@
     }
   }
 
+  // 寫入系統剪貼簿：優先使用 navigator.clipboard（需於使用者手勢下才允許，
+  // 如 click 事件）；若遇舊瀏覽器或權限受限則退回經典 textarea + execCommand
+  // 方案。兩種路徑皆不會干擾頁面原有選取。
+  function writeTextToClipboard(text) {
+    try {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === 'function'
+      ) {
+        return navigator.clipboard.writeText(text).catch(() => {
+          return fallbackCopy(text)
+        })
+      }
+    } catch (_) {}
+    return Promise.resolve(fallbackCopy(text))
+  }
+
+  function fallbackCopy(text) {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.top = '-9999px'
+      ta.style.left = '-9999px'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      return ok
+    } catch (_) {
+      return false
+    }
+  }
+
+  // 將參照頁籤中某一引文（已高亮的意旨段落）複製到系統剪貼簿，同時存入
+  // 判決剪貼簿卡片。
+  //   - 文字來源：citation.jumpRange（意旨段落起點至引文結束），非
+  //     window.getSelection()，無須使用者先做選取。
+  //   - 是否附上本篇裁判字號：遵循後台設定 userAppendCitation（與 Cmd+C
+  //     行為一致；側邊欄頂端亦可即時切換）。
+  //   - 插入書籤錨點：讓後續於卡片點「前往」可精準跳回此段落。
+  function copyCitationToClipboard(citation) {
+    const range = citation && citation.jumpRange
+    if (!range) return
+    const rawText = range.toString()
+    if (!rawText || !rawText.trim()) return
+    const clean = cleanCopyText(rawText)
+    const caseLabel = getCaseLabel()
+    const suffix =
+      userAppendCitation && caseLabel ? '（' + caseLabel + '意旨參照）' : ''
+    const finalText = clean + suffix
+
+    // 插入書籤錨點：與 Cmd+C 流程一致。插入順序須先 end 後 start，避免
+    // splitText 將 endContainer 切開導致 endOffset 失效。失敗時允許 anchor
+    // 為空，sidepanel.js 會退到 rawText 文字搜尋備援。
+    let anchorIdStart = ''
+    let anchorIdEnd = ''
+    try {
+      const uid =
+        Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7)
+      anchorIdStart = 'fint-clip-' + uid + '-s'
+      anchorIdEnd = 'fint-clip-' + uid + '-e'
+      const endRange = range.cloneRange()
+      endRange.collapse(false)
+      const endEl = document.createElement('span')
+      endEl.id = anchorIdEnd
+      endEl.className = 'fint-clip-anchor'
+      endRange.insertNode(endEl)
+      const startRange = range.cloneRange()
+      startRange.collapse(true)
+      const startEl = document.createElement('span')
+      startEl.id = anchorIdStart
+      startEl.className = 'fint-clip-anchor'
+      startRange.insertNode(startEl)
+    } catch (_) {
+      anchorIdStart = ''
+      anchorIdEnd = ''
+    }
+
+    // 寫入 OS 剪貼簿與卡片；Promise 並行而結果以卡片端為主顯示 toast。
+    writeTextToClipboard(finalText)
+    pushClipHistory(
+      finalText,
+      caseLabel,
+      rawText,
+      anchorIdStart,
+      anchorIdEnd,
+    ).then((result) => {
+      if (result === 'duplicate') {
+        showToast(
+          suffix
+            ? '已複製純文字（附字號・卡片已有相同內容）'
+            : '已複製純文字（卡片已有相同內容）',
+        )
+      } else if (result === 'added') {
+        showToast(
+          suffix
+            ? '已複製純文字（附字號）並存入卡片'
+            : '已複製純文字並存入卡片',
+        )
+      } else {
+        showToast('複製失敗')
+      }
+    })
+  }
+
   function installCopyHandler() {
     document.addEventListener(
       'copy',
@@ -967,6 +1765,20 @@
   //   C. text 去除字號後綴後，對 body 套 cleanCopyText 同樣的 normalize，
   //      建立 clean-index → full-index 映射再 indexOf（供未帶 rawText
   //      或 anchor 的 entry 使用）
+
+  // 清除目前顯示的 fint-jump 高亮。供參照頁籤 toggle 行為使用：使用者再次
+  // 點擊同一項時呼叫，讓頁面回到無暫態高亮狀態。若瀏覽器不支援 CSS
+  // Highlight API 則清除原生選取，對齊 scrollAndHighlightRange 的雙路徑。
+  function clearJumpHighlight() {
+    try {
+      if (typeof Highlight !== 'undefined' && CSS && CSS.highlights) {
+        CSS.highlights.delete('fint-jump')
+      } else {
+        const sel = window.getSelection()
+        if (sel) sel.removeAllRanges()
+      }
+    } catch (_) {}
+  }
 
   // scroll + highlight 共用路徑 — anchor 與 text-search 分支皆呼叫此函式
   function scrollAndHighlightRange(range) {
@@ -1246,7 +2058,12 @@
     const body = findBodyContainer()
     if (!body) return false
     const items = annotateAnchors(body)
-    renderSidebar(items)
+    // 引文抽取於 annotateAnchors 之後執行：annotateAnchors 插入的錨點為
+    // 空 <span>，不影響正文 text content 扁平化結果，兩者可共存。
+    // 使用者關閉「參照耳標」設定時完全跳過抽取步驟，以免在大篇判決中
+    // 產生不必要的 Range 物件。
+    const citations = userShowCitations ? extractCitations(body) : []
+    renderSidebar(items, citations)
     if (!copyHandlerInstalled) {
       installCopyHandler()
       copyHandlerInstalled = true

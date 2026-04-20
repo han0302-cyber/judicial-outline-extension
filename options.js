@@ -14,7 +14,12 @@ function clampDepth(value) {
 
 function loadSettings() {
   chrome.storage.sync.get(
-    { positions: DEFAULTS, appendCitation: true, maxDepth: 3 },
+    {
+      positions: DEFAULTS,
+      appendCitation: true,
+      maxDepth: 3,
+      showCitations: true,
+    },
     (result) => {
       const positions = Object.assign({}, DEFAULTS, result.positions || {})
       SITES.forEach((site) => {
@@ -29,6 +34,11 @@ function loadSettings() {
         'input[name="citation"][value="' + citation + '"]',
       )
       if (cInput) cInput.checked = true
+      const showCit = result.showCitations === false ? 'off' : 'on'
+      const scInput = document.querySelector(
+        'input[name="showCitations"][value="' + showCit + '"]',
+      )
+      if (scInput) scInput.checked = true
       const depth = clampDepth(result.maxDepth)
       const dInput = document.querySelector(
         'input[name="maxDepth"][value="' + depth + '"]',
@@ -46,18 +56,25 @@ function saveSettings() {
   })
   const cChecked = document.querySelector('input[name="citation"]:checked')
   const appendCitation = cChecked ? cChecked.value === 'on' : true
+  const scChecked = document.querySelector(
+    'input[name="showCitations"]:checked',
+  )
+  const showCitations = scChecked ? scChecked.value === 'on' : true
   const dChecked = document.querySelector('input[name="maxDepth"]:checked')
   const maxDepth = dChecked ? clampDepth(dChecked.value) : 3
-  chrome.storage.sync.set({ positions, appendCitation, maxDepth }, () => {
-    const status = document.getElementById('status')
-    if (!status) return
-    status.classList.add('visible')
-    clearTimeout(saveSettings._timer)
-    saveSettings._timer = setTimeout(
-      () => status.classList.remove('visible'),
-      1600,
-    )
-  })
+  chrome.storage.sync.set(
+    { positions, appendCitation, maxDepth, showCitations },
+    () => {
+      const status = document.getElementById('status')
+      if (!status) return
+      status.classList.add('visible')
+      clearTimeout(saveSettings._timer)
+      saveSettings._timer = setTimeout(
+        () => status.classList.remove('visible'),
+        1600,
+      )
+    },
+  )
 }
 
 document.addEventListener('DOMContentLoaded', () => {
