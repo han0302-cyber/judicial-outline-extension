@@ -661,6 +661,9 @@
         kind: 'judgment',
         label: `最高法院${year}年度台${word}字第${no}號${dispo || '判決'}`,
         sortKey: `2-${String(year).padStart(4, '0')}-${word}-${String(no).padStart(6, '0')}`,
+        // 保留年度與字別，供同群組內隱含「、第N號」後續案號繼承前綴時使用。
+        year,
+        word,
       })
     }
     // Pass 3: 最高法院民刑事庭會議決議
@@ -723,6 +726,21 @@
         label: `${prefix}${year}年度${monthPart}第${nth}次庭長法官聯席會議${dispo || '決議'}`,
         sortKey: `7-${String(year).padStart(4, '0')}-${firstNo.padStart(3, '0')}`,
       })
+    }
+
+    // Pass 8: 裸「第N號」候選 — 實務常見寫法會省略第二筆以後之「年度台X字」
+    // 或「釋字」前綴（例：`最高法院90年度台上字第1639號、第2215號`、
+    // `司法院大法官釋字第770號、第488號解釋`）。此處僅登錄位置資訊，具體
+    // 歸類須於 extractCitations 之 Stage 2b 依前置 explicit case 種類補齊；
+    // 若無可依附之 explicit case，Stage 2b 會予以剔除，不致污染結果。
+    // occupied 已含完整案號之區段，`第N號` 重疊者（屬 JUD 或 INT 的尾段）
+    // 自動略過。
+    for (const m of full.matchAll(/第(\d+)號/g)) {
+      const start = m.index
+      const end = start + m[0].length
+      if (rangesOverlap(start, end, occupied)) continue
+      occupied.push([start, end])
+      out.push({ start, end, kind: 'bareNo', no: m[1] })
     }
 
     out.sort((a, b) => a.start - b.start)
@@ -886,8 +904,22 @@
     //     的空白已被壓縮，此長度即「實質字距」）。
     //   - `。` 檢查亦於 searchFull（`。` 非空白，未被剔除）。
     //   - `\n` 檢查需於 full：對應之 fullGap 區間若含 \n 表示跨段。
+    //   - bareNo（裸「第N號」）亦納入分群，於 Stage 2b 依前置 explicit
+    //     case 之前綴補齊 label；若無可依附之 explicit 案號則剔除。
+    //   - 每一 case 保留 { start, end, year, word, no } 等欄位供 Stage 2b
+    //     解析使用。
     const MAX_GROUP_GAP = 50
     const groups = []
+    const toCase = (m) => ({
+      kind: m.kind,
+      label: m.label,
+      sortKey: m.sortKey,
+      start: m.start,
+      end: m.end,
+      year: m.year,
+      word: m.word,
+      no: m.no,
+    })
     for (const m of matches) {
       const last = groups[groups.length - 1]
       if (last) {
@@ -898,11 +930,7 @@
         const hasBreak =
           gapFull.indexOf('\n') !== -1 || gapS.indexOf('。') !== -1
         if (!hasBreak && gapS.length <= MAX_GROUP_GAP) {
-          last.cases.push({
-            kind: m.kind,
-            label: m.label,
-            sortKey: m.sortKey,
-          })
+          last.cases.push(toCase(m))
           last.end = m.end
           continue
         }
@@ -910,9 +938,71 @@
       groups.push({
         start: m.start,
         end: m.end,
-        cases: [{ kind: m.kind, label: m.label, sortKey: m.sortKey }],
+        cases: [toCase(m)],
       })
     }
+
+    // Stage 2b: 解析 bareNo。
+    // 實務常見寫法：
+    //   司法院大法官釋字第770號、第488號解釋
+    //   最高法院90年度台上字第1639號、第2215號、94年度台上字第115號、第2059號
+    // 第二筆起省略「釋字」或「年度台X字」前綴；以前一筆同類 explicit
+    // 案號之前綴繼承補齊。
+    //   • 前置為 judgment（JUD）：沿用其 year／word，label 為
+    //     「最高法院X年度台X字第N號判決」
+    //   • 前置為 interpretation（INT）：label 為「司法院釋字第N號解釋」
+    //   • 其他類別（RES／SYM／CON／ADMIN／GC）：暫不補抓（實務較罕見省略）
+    //   • 無可依附之 explicit case：予以剔除
+    // 解析完成後若群組僅含 bareNo（無任何 explicit case）而皆遭剔除，該
+    // 群視同無效，於後續 Stage 3 外亦須濾除（以 cases.length 判斷）。
+    for (const g of groups) {
+      const resolved = []
+      for (const c of g.cases) {
+        if (c.kind !== 'bareNo') {
+          resolved.push(c)
+          continue
+        }
+        // 找最近前置之非 bareNo explicit case
+        let preceding = null
+        for (const r of resolved) {
+          if (r.kind === 'bareNo') continue
+          if (r.end <= c.start && (!preceding || r.end > preceding.end)) {
+            preceding = r
+          }
+        }
+        if (!preceding) continue
+        const no = c.no
+        if (
+          preceding.kind === 'judgment' &&
+          preceding.year &&
+          preceding.word
+        ) {
+          resolved.push({
+            kind: 'judgment',
+            label: `最高法院${preceding.year}年度台${preceding.word}字第${no}號判決`,
+            sortKey: `2-${String(preceding.year).padStart(4, '0')}-${preceding.word}-${String(no).padStart(6, '0')}`,
+            start: c.start,
+            end: c.end,
+            year: preceding.year,
+            word: preceding.word,
+          })
+        } else if (preceding.kind === 'interpretation') {
+          resolved.push({
+            kind: 'interpretation',
+            label: `司法院釋字第${no}號解釋`,
+            sortKey: `5-${String(no).padStart(4, '0')}`,
+            start: c.start,
+            end: c.end,
+          })
+        }
+      }
+      g.cases = resolved
+    }
+    // 濾除 Stage 2b 後無 case 之群組
+    for (let i = groups.length - 1; i >= 0; i--) {
+      if (groups[i].cases.length === 0) groups.splice(i, 1)
+    }
+    if (!groups.length) return []
 
     // Stage 3: consumeConclusion 與 maybeExpandToParens 均於 searchFull 上
     // 執行（括號／結論語皆非空白，不受壓縮影響；且 searchFull 中關鍵字
