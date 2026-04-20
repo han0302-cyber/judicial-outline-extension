@@ -69,7 +69,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 🆕 **v0.2.6 更新**
   • 側邊欄新增「**參照**」頁籤：抽取判決正文所有裁判意旨引用，彙整為獨立清單，點擊即跳轉至被引段落並暫態高亮
-  • **七類意旨引用完整涵蓋**：最高法院判決／裁定、最高法院大法庭裁定、最高法院民刑事庭會議決議（含「第6、7次」多次編號）、法律座談會決議／審查意見（本院暨所屬法院、高院暨所屬法院、高院分院等）、大法官釋字解釋、憲法法庭判決／裁定／暫時處分／補充判決、最高行政法院庭長法官聯席會議決議
+  • **八類意旨引用完整涵蓋**：最高法院判決／裁定、最高法院大法庭裁定、最高法院民刑事庭會議決議（含「第6、7次」多次編號）、法律座談會決議／審查意見（本院暨所屬法院、高院暨所屬法院、高院分院等）、大法官釋字解釋、憲法法庭判決／裁定／暫時處分／補充判決、最高行政法院判決／裁定、最高行政法院庭長法官聯席會議決議
   • **同一括號內多案號拆分**：以頓號並列、第二筆以後省略前綴、跨類混列寫法皆可正確拆分並分別歸類
   • **隱含「第N號」後續案號回溯**：實務常見「釋字第770號、第488號」或「最高法院90年度台上字第1639號、第2215號、94年度台上字第115號、第2059號」等省略前綴之寫法，解析時依前置 explicit 案號之年度／字別（或釋字屬性）補齊 label，使同一括號內全部案號完整呈現
   • **兩種引用格式相容**：除括號式 `（最高法院…）` 外，亦支援行內無括號寫法（如「有最高法院X年度台上字第N號…判決要旨，及同院Y年度第K次民事庭決議可參」），以鄰近分群與尾隨結論語擴張辨識
@@ -79,7 +79,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
   • **同段多引用接續**：同段內多筆引用之跳轉範圍自前一筆結束處起算，不再重複覆蓋段首共同前言；段首項目符號自動剝除
   • **點擊切換暫態高亮**：條目點擊後以鵝黃暫態高亮整段意旨；同條再點擊即清除
   • **一鍵複製並存入卡片**：每筆條目右側提供「複製」按鈕，點擊即將該筆意旨段落正規化後寫入系統剪貼簿（是否附上本篇裁判字號依後台設定），並同步推入判決剪貼簿卡片；插入書籤錨點供日後「前往」跳轉
-  • **正文引文括號長駐高亮**：所有 `（…）` 附記以柔和天藍灰底長駐高亮，閱讀時可快速掃視；七類案號以類別分色（主題色／暖琥珀／中性灰／藕紫／深玫瑰紅／淺玫瑰紅／青綠）
+  • **正文引文括號長駐高亮**：所有 `（…）` 附記以柔和天藍灰底長駐高亮，閱讀時可快速掃視；八類案號以類別分色（主題色／暖琥珀／中性灰／藕紫／深玫瑰紅／淺玫瑰紅／青綠深／青綠淡）
   • **後台新增「參照耳標」開關**（預設開）：如無需使用可一鍵關閉，關閉後完全跳過引文抽取與正文長駐高亮
 
 🆕 **v0.2.5 更新**
@@ -188,7 +188,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
 
 🆕 **v0.2.6 changes**
-  • New **"Citations" sidebar tab**: extracts every authoritative opinion citation in the ruling (Supreme Court judgments/rulings, Supreme Court Grand Chamber rulings, Supreme Court civil/criminal chamber resolutions, inter-court symposium resolutions, Grand Justices' interpretations, Constitutional Court judgments, and Supreme Administrative Court presiding-justice joint conference resolutions — seven categories in total), with per-entry jump and transient highlight
+  • New **"Citations" sidebar tab**: extracts every authoritative opinion citation in the ruling (Supreme Court judgments/rulings, Supreme Court Grand Chamber rulings, Supreme Court civil/criminal chamber resolutions, inter-court symposium resolutions, Grand Justices' interpretations, Constitutional Court judgments, Supreme Administrative Court judgments/rulings, and Supreme Administrative Court presiding-justice joint conference resolutions — eight categories in total), with per-entry jump and transient highlight
   • **Full-text scan with proximity grouping** replaces paren-only detection, covering both parenthesized form `（最高法院…）` and inline prose form (`…有最高法院X年度台上字第N號判決要旨，及同院Y年度第K次民事庭決議可參`); multi-case lists separated by 、 are split even when later entries omit the "最高法院" prefix
   • **Cite vs. rebut disambiguation**: inline citations must end with a strong concluder (意旨參照／要旨參照／可資參照／足資參照／可參／參照 etc.) to be accepted; otherwise treated as a rebuttal reference (e.g., "…援引最高法院XX決議，惟…不同") and omitted, so courts' refuted precedents are not marked as authority
   • **Paragraph boundary via hierarchy markers**: opinion passage start is determined by hierarchy numerals (壹／一／㈠／(一)／1.／⒈／(1)／⑴／①) and block-level boundaries. Even for rulings without visible paragraph breaks (e.g. Judicial Yuan intranet FINT pages that render long passages in `<pre>`-style layout with many soft line wraps), the highlight correctly lands at the current section's head
@@ -196,7 +196,7 @@ Lawyers, legal staff, law students, and researchers — anyone who needs to read
   • **FINT soft-wrap tolerance**: `\n` and `\r` within text-node content are normalized to ASCII space at read time (character-for-character substitution, preserving segment lengths and DOM offset mapping), so FINT's visual line wrapping does not break keyword matching or be mistaken for a paragraph boundary
   • **Multi-citation paragraph continuity**: when several citations appear in one paragraph, each subsequent entry's jump range starts from the previous citation's end; leading enumeration markers are automatically stripped
   • **One-click "Copy" button** on each citation entry: normalizes the passage (optionally appending the current judgment's case label, per the "append citation" setting) and writes to the system clipboard while simultaneously pushing it into the clipboard card list with bookmark anchors for later "Go to source" jumps
-  • **Persistent inline highlight** on every `（最高法院…）` marker (soft sky-blue tint); case badges are color-coded by category — Supreme Court judgment (theme color) / Grand Chamber (warm amber) / chamber resolution (neutral grey) / symposium (lilac) / Grand Justices interpretation (deep rose) / Constitutional Court (light rose) / Supreme Administrative joint conference (teal)
+  • **Persistent inline highlight** on every `（…）` citation marker (soft sky-blue tint); case badges are color-coded by category — Supreme Court judgment (theme color) / Grand Chamber (warm amber) / chamber resolution (neutral grey) / symposium (lilac) / Grand Justices interpretation (deep rose) / Constitutional Court (light rose) / Supreme Administrative judgment (deep teal) / Supreme Administrative joint conference (light teal)
   • Added **"Show Citations tab" toggle** to the options page (on by default); disabling it skips the extraction entirely and removes both the tab and the inline highlight
 
 🆕 **v0.2.5 changes**

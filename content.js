@@ -10,12 +10,12 @@
 //   1. 於頁面側緣注入「判決架構」卡片（以滑鼠停駐式頁籤呈現），偵測正
 //      文之階層編號（壹、一、(一)、㈠⋯）與主文／事實／理由／附表等章
 //      段，點擊即平滑捲動至對應段落。
-//   2. 於同一側邊欄另設「參照」頁籤，抽取正文所有裁判意旨引用（最高法
-//      院判決／裁定、最高法院大法庭裁定、最高法院民刑事庭會議決議、
-//      法律座談會決議、大法官釋字解釋、憲法法庭判決及最高行政法院庭
-//      長法官聯席會議決議共七類），列出每筆意旨段落摘要、案號清單、
-//      跳轉按鈕與複製按鈕；正文之括號附記同步以 CSS Highlight API 長
-//      駐高亮。
+//   2. 於同一側邊欄另設「參照」頁籤，抽取正文所有裁判意旨引用（最高
+//      法院判決／裁定、最高法院大法庭裁定、最高法院民刑事庭會議決議、
+//      法律座談會決議、大法官釋字解釋、憲法法庭判決、最高行政法院判
+//      決／裁定、最高行政法院庭長法官聯席會議決議共八類），列出每筆
+//      意旨段落摘要、案號清單、跳轉按鈕與複製按鈕；正文之括號附記
+//      同步以 CSS Highlight API 長駐高亮。
 //   3. 攔截 copy 事件：將選取文字之換行壓縮為單行，於尾端附上「（<裁
 //      判字號>意旨參照）」後寫入系統剪貼簿（Windows／macOS 通用）。
 //      另攔截 cut 事件，提供 Cmd／Ctrl+X「僅複製、不存入剪貼簿卡片」
@@ -542,8 +542,10 @@
   //   E. 大法官釋字解釋：司法院釋字第N號解釋（2022 年憲法訴訟法施行前之舊制）
   //   F. 憲法法庭判決／裁定：憲法法庭XX年憲（判|裁|暫|補）字第N號判決／裁定
   //      （2022 年憲法訴訟法施行後之新制）
-  //   G. 最高行政法院庭長法官聯席會議決議：本院／最高行政法院XX年度
-  //      （M月份）?第N次庭長法官聯席會議決議（對應行政訴訟之權威見解）
+  //   G. 最高行政法院判決／裁定：本院／最高行政法院XX年度（判|裁|聲|抗|
+  //      再）字第N號判決（行政訴訟上訴審之終審見解）
+  //   H. 最高行政法院庭長法官聯席會議決議：本院／最高行政法院XX年度
+  //      （M月份）?第N次庭長法官聯席會議決議
   //
   // 架構採「全文掃描 + 鄰近分群」而非「括號內掃描」，以同時涵蓋以下兩種
   // 實務寫法：
@@ -579,7 +581,7 @@
   //
   // 案號 regex kind 標記：
   //   'grand' | 'judgment' | 'resolution' | 'symposium' |
-  //   'interpretation' | 'constitutional' | 'admin'
+  //   'interpretation' | 'constitutional' | 'admin' | 'adminJudgment'
   //   label 為呈現用的案號字串（保留原文前綴，如「本院暨所屬法院」）。
   // 大法庭裁定的「大字」會同時吻合一般判決的「字」規則，因此先跑 GC_RE，
   // 再將其佔用區間從後續兩組 regex 過濾掉，避免重複抓。
@@ -620,6 +622,15 @@
   //   法院之自引。
   const ADMIN_CASE_RE =
     /(最高行政法院|本院)[\s\u3000]*(\d+)[\s\u3000]*年(?:[\s\u3000]*度)?[\s\u3000]*(?:(\d+)[\s\u3000]*月份)?[\s\u3000]*第[\s\u3000]*(\d+(?:[\s\u3000]*[、,][\s\u3000]*\d+)*)[\s\u3000]*次[\s\u3000]*庭長法官聯席會議(?:[\s\u3000]*(決議|決定))?/g
+  // ADMIN_JUD 最高行政法院判決／裁定：
+  //   字別涵蓋 判字（判決）／裁字／聲字／抗字／再字，此四字別為最高行政
+  //   法院所獨有（與最高法院之「台上字／台抗字」結構不同），故以「行政
+  //   法院字別」為判別依據；前綴允許「最高行政法院」或「本院」（最高
+  //   行政法院自引時常用後者）。label 依字別決定預設書類（判→判決、
+  //   裁／聲／抗→裁定、再→判決）；保留原文前綴，避免誤標其他行政法院
+  //   之自引。
+  const ADMIN_JUD_CASE_RE =
+    /(最高行政法院|本院)[\s\u3000]*(\d+)[\s\u3000]*年[\s\u3000]*度?[\s\u3000]*(判|裁|聲|抗|再)[\s\u3000]*字[\s\u3000]*第?[\s\u3000]*(\d+)[\s\u3000]*號(?:[\s\u3000]*(判決|裁定))?/g
 
   function rangesOverlap(aStart, aEnd, ranges) {
     for (const [s, e] of ranges) {
@@ -664,6 +675,28 @@
         // 保留年度與字別，供同群組內隱含「、第N號」後續案號繼承前綴時使用。
         year,
         word,
+      })
+    }
+    // Pass 2.5: 最高行政法院判決／裁定（含本院自引）
+    const adminJudDispoDefault = {
+      判: '判決',
+      裁: '裁定',
+      聲: '裁定',
+      抗: '裁定',
+      再: '判決',
+    }
+    for (const m of full.matchAll(ADMIN_JUD_CASE_RE)) {
+      const [mtxt, prefixRaw, year, word, no, dispo] = m
+      const start = m.index
+      const end = start + mtxt.length
+      const prefix = (prefixRaw || '').replace(/[\s\u3000]+/g, '')
+      pushNonOverlap(start, end, {
+        kind: 'adminJudgment',
+        label: `${prefix}${year}年度${word}字第${no}號${dispo || adminJudDispoDefault[word] || '判決'}`,
+        sortKey: `8-${String(year).padStart(4, '0')}-${word}-${String(no).padStart(6, '0')}`,
+        year,
+        word,
+        prefix,
       })
     }
     // Pass 3: 最高法院民刑事庭會議決議
@@ -928,6 +961,7 @@
       year: m.year,
       word: m.word,
       no: m.no,
+      prefix: m.prefix,
     })
     for (const m of matches) {
       const last = groups[groups.length - 1]
@@ -955,15 +989,25 @@
     // 實務常見寫法：
     //   司法院大法官釋字第770號、第488號解釋
     //   最高法院90年度台上字第1639號、第2215號、94年度台上字第115號、第2059號
-    // 第二筆起省略「釋字」或「年度台X字」前綴；以前一筆同類 explicit
-    // 案號之前綴繼承補齊。
+    //   最高行政法院110年度判字第123號、第456號判決
+    // 第二筆起省略「釋字」、「年度台X字」或「年度X字」前綴；以前一筆
+    // 同類 explicit 案號之前綴繼承補齊。
     //   • 前置為 judgment（JUD）：沿用其 year／word，label 為
     //     「最高法院X年度台X字第N號判決」
+    //   • 前置為 adminJudgment：沿用其 prefix／year／word，label 為
+    //     「最高行政法院X年度X字第N號{判決|裁定}」（依字別預設書類）
     //   • 前置為 interpretation（INT）：label 為「司法院釋字第N號解釋」
     //   • 其他類別（RES／SYM／CON／ADMIN／GC）：暫不補抓（實務較罕見省略）
     //   • 無可依附之 explicit case：予以剔除
     // 解析完成後若群組僅含 bareNo（無任何 explicit case）而皆遭剔除，該
     // 群視同無效，於後續 Stage 3 外亦須濾除（以 cases.length 判斷）。
+    const adminJudDispoMap = {
+      判: '判決',
+      裁: '裁定',
+      聲: '裁定',
+      抗: '裁定',
+      再: '判決',
+    }
     for (const g of groups) {
       const resolved = []
       for (const c of g.cases) {
@@ -994,6 +1038,23 @@
             end: c.end,
             year: preceding.year,
             word: preceding.word,
+          })
+        } else if (
+          preceding.kind === 'adminJudgment' &&
+          preceding.year &&
+          preceding.word
+        ) {
+          const pfx = preceding.prefix || '最高行政法院'
+          const dispo = adminJudDispoMap[preceding.word] || '判決'
+          resolved.push({
+            kind: 'adminJudgment',
+            label: `${pfx}${preceding.year}年度${preceding.word}字第${no}號${dispo}`,
+            sortKey: `8-${String(preceding.year).padStart(4, '0')}-${preceding.word}-${String(no).padStart(6, '0')}`,
+            start: c.start,
+            end: c.end,
+            year: preceding.year,
+            word: preceding.word,
+            prefix: pfx,
           })
         } else if (preceding.kind === 'interpretation') {
           resolved.push({

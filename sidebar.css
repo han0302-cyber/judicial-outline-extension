@@ -421,6 +421,14 @@
   border-color: #b2dfdb;
 }
 
+/* 最高行政法院判決／裁定：與聯席會議決議同屬行政法院體系，沿用青綠底
+ * 色系但以較深字色區別，視覺上可辨識為同門但不同文書類別。 */
+#fint-outline-sidebar .fint-citation-badge-adminJudgment {
+  background: #ccfbf1;
+  color: #0f766e;
+  border-color: #99f6e4;
+}
+
 #fint-outline-sidebar .fint-citation-preview {
   font-size: 12px;
   line-height: 1.55;
