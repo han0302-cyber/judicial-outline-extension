@@ -1026,23 +1026,73 @@
     }
     if (!acceptedGroups.length) return []
 
-    // Stage 4: 將 search 座標映射回 full，並計算 opinionStart。
-    //   opinionStart 需於 full 上計算（需要 \n 當段落邊界）。
-    //   計算順序：
-    //     (1) 預設為最近 \n 之後（段落開頭）
-    //     (2) 若前一筆接受之引文落於同段落內，改以其結尾為起點
-    //     (3) 跳過銜接性空白與句末標點（。；;，,）
-    //     (4) 剝除段首階層項目符號（壹/一/(一)/1./㈠/⒈/⑴/①…），
-    //         使高亮不含編號本身，僅涵蓋實質意旨文字
+    // Stage 4: 計算每一筆引文之 opinionStart（意旨段落起點）。
+    //
+    // 段落邊界定義（以下任一成立即為一段落起點）：
+    //   (a) 區塊邊界：`\n`（源自 ensureNewline，僅於區塊元素／<br> 處注入）
+    //   (b) 階層項目符號出現位置：實務判決以壹／一／(一)／1.／㈠／⒈／⑴／①
+    //       等編號分節；此等 marker 必須位於句讀或空白之後方算（避免誤將
+    //       正文中「第(1)項」「一、二、三所示」之括號編號認作段落起點）
+    //
+    // 先全文掃描一次建立 paraStarts（遞增排序陣列），後對每一筆引文回傳
+    // 「小於 citePos 之最大 paraStart」；若前一筆引文之結尾仍落於同段落
+    // 內，則改以其結尾為起點（多則引用接續）。最後跳過銜接性空白與句末
+    // 標點，再以 skipEnumerationMarkers 剝除段首編號。
+    const paraStarts = [0]
+    const isBoundaryBefore = (pos) => {
+      if (pos === 0) return true
+      const c = full.charAt(pos - 1)
+      return /[\n。；;，,\s\u3000]/.test(c)
+    }
+    for (let i = 0; i < full.length; i++) {
+      if (full.charAt(i) === '\n') {
+        if (i + 1 < full.length) paraStarts.push(i + 1)
+        continue
+      }
+      if (!isBoundaryBefore(i)) continue
+      const cp = full.charCodeAt(i)
+      if (
+        (cp >= 0x3220 && cp <= 0x3229) ||
+        (cp >= 0x2488 && cp <= 0x249b) ||
+        (cp >= 0x2474 && cp <= 0x2487) ||
+        (cp >= 0x2460 && cp <= 0x2473)
+      ) {
+        paraStarts.push(i)
+        continue
+      }
+      const head = full.slice(i, Math.min(i + 12, full.length))
+      for (const { pattern } of HIERARCHY_PATTERNS) {
+        if (pattern.test(head)) {
+          paraStarts.push(i)
+          break
+        }
+      }
+    }
+    paraStarts.sort((a, b) => a - b)
+
+    const findParaStartBefore = (pos) => {
+      let lo = 0
+      let hi = paraStarts.length - 1
+      let best = 0
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1
+        if (paraStarts[mid] < pos) {
+          best = paraStarts[mid]
+          lo = mid + 1
+        } else {
+          hi = mid - 1
+        }
+      }
+      return best
+    }
+
     let lastFullEnd = -1
     for (const g of acceptedGroups) {
       const { fullStart, fullEnd } = toFullRange(g.start, g.end)
       g.fullStart = fullStart
       g.fullEnd = fullEnd
-      const lastNl = full.lastIndexOf('\n', g.fullStart - 1)
-      const paraStart = lastNl === -1 ? 0 : lastNl + 1
-      let opStart = paraStart
-      if (lastFullEnd > paraStart && lastFullEnd < g.fullStart) {
+      let opStart = findParaStartBefore(g.fullStart)
+      if (lastFullEnd > opStart && lastFullEnd < g.fullStart) {
         opStart = lastFullEnd
       }
       while (
