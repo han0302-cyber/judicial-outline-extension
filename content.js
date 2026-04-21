@@ -7,10 +7,10 @@
 //   judgment.law.intraj/FJUD/*      （內網裁判書系統）
 //
 // 四項主要功能：
-//   1. 於頁面側緣注入「判決架構」卡片（以滑鼠停駐式頁籤呈現），偵測正
+//   1. 於頁面側緣注入「判決架構」卡片（以滑鼠停駐式耳標呈現），偵測正
 //      文之階層編號（壹、一、(一)、㈠⋯）與主文／事實／理由／附表等章
 //      段，點擊即平滑捲動至對應段落。
-//   2. 於同一側邊欄另設「參照」頁籤，抽取正文所有裁判意旨引用（最高
+//   2. 於同一側邊欄另設「參照」耳標，抽取正文所有裁判意旨引用（最高
 //      法院判決／裁定、最高法院大法庭裁定、最高法院民刑事庭會議決議、
 //      法律座談會決議、大法官釋字解釋、憲法法庭判決、最高行政法院判
 //      決／裁定、最高行政法院庭長法官聯席會議決議共八類），列出每筆
@@ -50,10 +50,30 @@
   //   4 = +1./⒈/１．             5 = +(1)/⑴/（１）       6 = +①/②/③
   // 預設停在 3 = 三層大綱，多數判決閱讀已足夠。
   let userMaxDepth = 3
-  // 參照耳標開關：控制是否渲染「參照」頁籤與正文引文長駐高亮。預設開啟；
+  // 參照耳標開關：控制是否渲染「參照」耳標與正文引文長駐高亮。預設開啟；
   // 關閉後僅保留「判決架構」耳標，適合不熟悉或不想看到最高法院引用清單
   // 的使用者。
   let userShowCitations = true
+  // 螢光筆總開關與顏色清單：
+  //   enableHighlighter - 關閉時工具列不顯、耳標不渲染、不讀寫 storage；
+  //     既有持久化資料保留，日後重新開啟即還原。
+  //   highlighterColors - 決定工具列呈現哪些色鈕；未勾選者不供塗色，但
+  //     既有段落仍保留並如常顯示。
+  //   HL_COLOR_KEYS - 顏色 key 之權威來源，content／options 共用以避免
+  //     定義分散。
+  const HL_COLOR_KEYS = ['yellow', 'red', 'orange', 'green', 'blue', 'purple']
+  let userEnableHighlighter = true
+  let userHighlighterColors = HL_COLOR_KEYS.slice()
+
+  function normalizeHighlighterColors(arr) {
+    if (!Array.isArray(arr)) return HL_COLOR_KEYS.slice()
+    const out = []
+    for (const k of arr) {
+      if (HL_COLOR_KEYS.indexOf(k) !== -1 && out.indexOf(k) === -1) out.push(k)
+    }
+    // 零勾選時退回全選，以免工具列出現空白按鈕。
+    return out.length ? out : HL_COLOR_KEYS.slice()
+  }
   const positionsReady = new Promise((resolve) => {
     try {
       chrome.storage.sync.get(
@@ -62,6 +82,8 @@
           appendCitation: true,
           maxDepth: 3,
           showCitations: true,
+          enableHighlighter: true,
+          highlighterColors: userHighlighterColors,
         },
         (result) => {
           if (result && result.positions) {
@@ -75,6 +97,14 @@
           }
           if (result && typeof result.showCitations === 'boolean') {
             userShowCitations = result.showCitations
+          }
+          if (result && typeof result.enableHighlighter === 'boolean') {
+            userEnableHighlighter = result.enableHighlighter
+          }
+          if (result && Array.isArray(result.highlighterColors)) {
+            userHighlighterColors = normalizeHighlighterColors(
+              result.highlighterColors,
+            )
           }
           resolve()
         },
@@ -107,6 +137,37 @@
       if (changes.showCitations) {
         userShowCitations = changes.showCitations.newValue !== false
         needsRerender = true
+      }
+      if (changes.enableHighlighter) {
+        const was = userEnableHighlighter
+        userEnableHighlighter = changes.enableHighlighter.newValue !== false
+        if (!userEnableHighlighter && was) {
+          // 切到「關閉」：清掉工具列與既有 CSS Highlights，移除側邊欄頁
+          // 籤；storage 中的資料不動，日後重新啟用仍能還原。
+          try {
+            if (hlToolbarEl && hlToolbarEl.isConnected) hlToolbarEl.remove()
+            hlToolbarEl = null
+            highlightEntries = []
+            applyAllHighlights()
+            ensureHighlightsTab()
+          } catch (_) {}
+        } else if (userEnableHighlighter && !was) {
+          // 切到「開啟」：自 storage 重新載回本頁所有段落。
+          try {
+            loadHighlightsFromStorage()
+          } catch (_) {}
+        }
+      }
+      if (changes.highlighterColors) {
+        userHighlighterColors = normalizeHighlighterColors(
+          changes.highlighterColors.newValue || [],
+        )
+        // 工具列結構隨顏色清單變動，標記為待重建；下次浮現時會以新清單
+        // 重新組裝。既有已塗段落不受影響。
+        try {
+          if (hlToolbarEl && hlToolbarEl.isConnected) hlToolbarEl.remove()
+          hlToolbarEl = null
+        } catch (_) {}
       }
       if (needsRerender) {
         sidebarBuilt = false
@@ -1231,7 +1292,7 @@
   // ----- Sidebar rendering -----
 
   // 將文件內的元素滾動至適當位置（扣掉 sticky header 高度），供「判決架構」
-  // 頁籤點擊 anchor 使用；與舊版 inline 實作完全等價。
+  // 耳標點擊 anchor 使用；與舊版 inline 實作完全等價。
   function scrollToTargetElement(target) {
     if (!target) return
     const HEADER_OFFSET = 120
@@ -1342,30 +1403,27 @@
     const maxLevel = items.reduce((m, it) => Math.max(m, it.level || 0), 0)
     aside.dataset.depth = String(maxLevel)
 
-    // ----- 頁籤一：判決架構 -----
-    const outlineGroup = hostDoc.createElement('div')
-    outlineGroup.className = 'fint-tab-group'
-    outlineGroup.dataset.group = 'outline'
+    // ----- 耳標一：判決架構 -----
+    // 僅於偵測到階層項目時渲染；未命中任何層級標記（如簡易判決、裁定或
+    // 純段落的釋字文稿）時整個耳標省略，避免空卡片與冗贅訊息佔用側邊欄。
+    if (items.length) {
+      const outlineGroup = hostDoc.createElement('div')
+      outlineGroup.className = 'fint-tab-group'
+      outlineGroup.dataset.group = 'outline'
 
-    const outlineTab = hostDoc.createElement('div')
-    outlineTab.className = 'fint-outline-tab'
-    outlineTab.textContent = '判決架構'
-    outlineGroup.appendChild(outlineTab)
+      const outlineTab = hostDoc.createElement('div')
+      outlineTab.className = 'fint-outline-tab'
+      outlineTab.textContent = '判決架構'
+      outlineGroup.appendChild(outlineTab)
 
-    const outlineCard = hostDoc.createElement('div')
-    outlineCard.className = 'fint-outline-card'
+      const outlineCard = hostDoc.createElement('div')
+      outlineCard.className = 'fint-outline-card'
 
-    const outlineHead = hostDoc.createElement('div')
-    outlineHead.className = 'fint-outline-head'
-    outlineHead.textContent = '判決架構'
-    outlineCard.appendChild(outlineHead)
+      const outlineHead = hostDoc.createElement('div')
+      outlineHead.className = 'fint-outline-head'
+      outlineHead.textContent = '判決架構'
+      outlineCard.appendChild(outlineHead)
 
-    if (!items.length) {
-      const empty = hostDoc.createElement('div')
-      empty.className = 'fint-outline-empty'
-      empty.textContent = '此頁未偵測到層級標記（壹、一、(一)、1. ...）'
-      outlineCard.appendChild(empty)
-    } else {
       const list = hostDoc.createElement('div')
       list.className = 'fint-outline-list'
       items.forEach((item) => {
@@ -1382,12 +1440,13 @@
         list.appendChild(btn)
       })
       outlineCard.appendChild(list)
-    }
-    outlineGroup.appendChild(outlineCard)
-    aside.appendChild(outlineGroup)
 
-    // ----- 頁籤二：最高法院參照 -----
-    // 若此頁未偵測到任何最高法院引用，不渲染頁籤以保持側邊欄精簡。
+      outlineGroup.appendChild(outlineCard)
+      aside.appendChild(outlineGroup)
+    }
+
+    // ----- 耳標二：最高法院參照 -----
+    // 若此頁未偵測到任何最高法院引用，不渲染耳標以保持側邊欄精簡。
     if (citations.length) {
       const citesGroup = hostDoc.createElement('div')
       citesGroup.className = 'fint-tab-group'
@@ -1862,7 +1921,7 @@
     }
   }
 
-  // 將參照頁籤中某一引文（已高亮的意旨段落）複製到系統剪貼簿，同時存入
+  // 將參照耳標中某一引文（已高亮的意旨段落）複製到系統剪貼簿，同時存入
   // 判決剪貼簿卡片。
   //   - 文字來源：citation.jumpRange（意旨段落起點至引文結束），非
   //     window.getSelection()，無須使用者先做選取。
@@ -1976,7 +2035,7 @@
   //      建立 clean-index → full-index 映射再 indexOf（供未帶 rawText
   //      或 anchor 的 entry 使用）
 
-  // 清除目前顯示的 fint-jump 高亮。供參照頁籤 toggle 行為使用：使用者再次
+  // 清除目前顯示的 fint-jump 高亮。供參照耳標 toggle 行為使用：使用者再次
   // 點擊同一項時呼叫，讓頁面回到無暫態高亮狀態。若瀏覽器不支援 CSS
   // Highlight API 則清除原生選取，對齊 scrollAndHighlightRange 的雙路徑。
   function clearJumpHighlight() {
@@ -2245,6 +2304,727 @@
     })
   } catch (_) {}
 
+  // ----- Highlighter（螢光筆）-----
+  //
+  // 選取文字後於選取範圍上方浮出小型工具列，六色圓點供點選，另附「清除」鈕
+  // 抹除與選取重疊之既有螢光標記。
+  //
+  // 視覺呈現採 CSS Highlight API：為每種顏色註冊一個 Highlight，名稱為
+  // `fint-hl-<color>`，由 sidebar.css 之 `::highlight(fint-hl-*)` 規則上色。
+  // 優點：零 DOM 變動、不會與 annotateAnchors／citeRange 的 Live Range 衝
+  // 突；缺點：頁面重載或 SPA 重繪後標記不保留（跨 session 不持久，符合
+  // 側邊欄卡片 session-only 的一致性）。
+  //
+  // 工具列掛在「選取發生之同一個 document」而非 hostDoc：FJUD iframe 無
+  // 內部捲軸、full-expanded 於父頁面，position:absolute + body-relative 座
+  // 標等同於頁面上呈現的位置；在 top frame（FINT / 內網）亦正常運作。避
+  // 免 fixed 定位於 iframe 內退化為 absolute 之副作用。
+  const HIGHLIGHT_COLORS = [
+    { key: 'yellow', label: '黃' },
+    { key: 'red',    label: '亮紅' },
+    { key: 'orange', label: '亮橘' },
+    { key: 'green',  label: '亮綠' },
+    { key: 'blue',   label: '亮藍' },
+    { key: 'purple', label: '亮紫' },
+  ]
+  // 單一權威順序陣列：使用者於側邊欄手動拖曳調整順序後，此陣列即為呈現
+  // 順序來源；storage 也依此陣列序列化，重整頁面後順序得以還原。CSS
+  // Highlight API 仍以「每色一個 Highlight」註冊，透過 entriesByColor()
+  // 於每次 applyAllHighlights 時即時分群，不在狀態層維護 per-color 結構。
+  let highlightEntries = [] // Array<{ color, range }>
+
+  function highlightEntriesByColor() {
+    const map = new Map()
+    for (const c of HIGHLIGHT_COLORS) map.set(c.key, [])
+    for (const e of highlightEntries) {
+      if (!e || !e.range || e.range.collapsed) continue
+      const bucket = map.get(e.color)
+      if (bucket) bucket.push(e.range)
+    }
+    return map
+  }
+
+  let hlToolbarEl = null
+  let hlHideTimer = null
+
+  function applyAllHighlights() {
+    try {
+      // 順帶清理 collapsed range（DOM 被重繪／節點移除時會出現），避免
+      // CSS Highlight 註冊到失效 range 產生多餘開銷。
+      highlightEntries = highlightEntries.filter(
+        (e) => e && e.range && !e.range.collapsed,
+      )
+      if (typeof Highlight === 'undefined' || !CSS || !CSS.highlights) return
+      const byColor = highlightEntriesByColor()
+      for (const c of HIGHLIGHT_COLORS) {
+        const name = 'fint-hl-' + c.key
+        const ranges = byColor.get(c.key) || []
+        if (ranges.length) {
+          CSS.highlights.set(name, new Highlight(...ranges))
+        } else {
+          CSS.highlights.delete(name)
+        }
+      }
+    } catch (_) {}
+  }
+
+  function getActiveSelectionRange() {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null
+    const r = sel.getRangeAt(0)
+    if (!r || r.collapsed) return null
+    if (!r.toString().trim()) return null
+    // 排除 sidebar 內部與可編輯欄位的選取
+    const aca =
+      r.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+        ? r.commonAncestorContainer
+        : r.commonAncestorContainer.parentElement
+    if (!aca) return null
+    if (aca.closest && aca.closest('#fint-outline-sidebar')) return null
+    if (aca.closest && aca.closest('#fint-hl-toolbar')) return null
+    if (
+      aca.closest &&
+      aca.closest('input, textarea, select, [contenteditable="true"]')
+    ) {
+      return null
+    }
+    // 僅限判決正文區域；若暫時尚未定位出 body container（首次 selectionchange
+    // 早於 tryBuildSidebar），放行以免漏掉使用者剛載入頁面就選取的情境。
+    const body = findBodyContainer()
+    if (body && !body.contains(r.commonAncestorContainer)) return null
+    return r
+  }
+
+  // 兩 Range 是否有實質重疊（端點相觸不算）。命名加 hl 前綴以避免與前面
+  // collectCaseMatches 所用、以「數字區間」為參數的同名 rangesOverlap
+  // 衝突（function 宣告於同一 IIFE 作用域會互相覆蓋）。
+  function hlRangesOverlap(a, b) {
+    if (a.compareBoundaryPoints(Range.END_TO_START, b) >= 0) return false
+    if (a.compareBoundaryPoints(Range.START_TO_END, b) <= 0) return false
+    return true
+  }
+
+  // 將 existing 減去 cut 的重疊部分，回傳 0/1/2 段剩餘 Range。用於橡皮擦：
+  // 使用者選取某一段，要把所有色彩既有 Range 中重疊到的那段去掉，保留兩側
+  // 尚未被抹除的殘段。
+  function subtractRange(existing, cut) {
+    if (!hlRangesOverlap(existing, cut)) return [existing]
+    const ownerDoc = existing.startContainer.ownerDocument || document
+    const out = []
+    // 左殘段：existing.start → cut.start（若 existing.start < cut.start）
+    if (existing.compareBoundaryPoints(Range.START_TO_START, cut) < 0) {
+      try {
+        const left = ownerDoc.createRange()
+        left.setStart(existing.startContainer, existing.startOffset)
+        left.setEnd(cut.startContainer, cut.startOffset)
+        if (!left.collapsed) out.push(left)
+      } catch (_) {}
+    }
+    // 右殘段：cut.end → existing.end（若 cut.end < existing.end）
+    if (existing.compareBoundaryPoints(Range.END_TO_END, cut) > 0) {
+      try {
+        const right = ownerDoc.createRange()
+        right.setStart(cut.endContainer, cut.endOffset)
+        right.setEnd(existing.endContainer, existing.endOffset)
+        if (!right.collapsed) out.push(right)
+      } catch (_) {}
+    }
+    return out
+  }
+
+  function applyHighlightColor(colorKey, range) {
+    const r = range || getActiveSelectionRange()
+    if (!r) return
+    if (HL_COLOR_KEYS.indexOf(colorKey) === -1) return
+    // 先從既有序列中移除「同色且與本次選取重疊」之條目（避免同色疊色）；
+    // 其他顏色之既有標記保留，允許多色疊於同段文字（後加者視覺置於上層）。
+    const next = []
+    for (const e of highlightEntries) {
+      if (e.color === colorKey && hlRangesOverlap(e.range, r)) continue
+      next.push(e)
+    }
+    // 新段落附加於陣列末端（= 側邊欄最後一列），符合「依塗色順序新增」的
+    // 預設體驗；使用者後續可於側邊欄拖曳重排。
+    next.push({ color: colorKey, range: r.cloneRange() })
+    highlightEntries = next
+    applyAllHighlights()
+    ensureHighlightsTab()
+    saveHighlightsToStorage()
+  }
+
+  function eraseHighlight(range) {
+    const r = range || getActiveSelectionRange()
+    if (!r) return
+    const next = []
+    for (const e of highlightEntries) {
+      // 同一條目可能因橡皮擦切出 0/1/2 段殘餘；保留順序下原位展開。
+      const parts = subtractRange(e.range, r)
+      for (const p of parts) next.push({ color: e.color, range: p })
+    }
+    highlightEntries = next
+    applyAllHighlights()
+    ensureHighlightsTab()
+    saveHighlightsToStorage()
+  }
+
+  function buildHighlighterToolbar() {
+    const tb = document.createElement('div')
+    tb.id = 'fint-hl-toolbar'
+    tb.dataset.visible = '0'
+    tb.setAttribute('role', 'toolbar')
+    tb.setAttribute('aria-label', '螢光筆')
+    // mousedown preventDefault：避免點擊按鈕時 focus 從選取文字被移走，
+    // 進而造成 window.getSelection() 在 click handler 裡已收起。
+    tb.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+    })
+
+    for (const c of HIGHLIGHT_COLORS) {
+      // 僅呈現使用者於後台勾選之顏色；未勾選者完全不建構 DOM，避免工
+      // 具列寬度被看不到的按鈕撐開。
+      if (userHighlighterColors.indexOf(c.key) === -1) continue
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'fint-hl-swatch fint-hl-swatch-' + c.key
+      btn.dataset.color = c.key
+      btn.setAttribute('aria-label', '螢光筆 ' + c.label)
+      btn.title = c.label
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault()
+        ev.stopPropagation()
+        const r = getActiveSelectionRange()
+        if (!r) return
+        applyHighlightColor(c.key, r)
+        hideHighlighterToolbar()
+      })
+      tb.appendChild(btn)
+    }
+
+    const sep = document.createElement('span')
+    sep.className = 'fint-hl-sep'
+    tb.appendChild(sep)
+
+    const erase = document.createElement('button')
+    erase.type = 'button'
+    erase.className = 'fint-hl-erase'
+    erase.setAttribute('aria-label', '清除螢光筆')
+    erase.title = '清除'
+    erase.textContent = '清除'
+    erase.addEventListener('click', (ev) => {
+      ev.preventDefault()
+      ev.stopPropagation()
+      const r = getActiveSelectionRange()
+      if (!r) return
+      eraseHighlight(r)
+      hideHighlighterToolbar()
+    })
+    tb.appendChild(erase)
+    return tb
+  }
+
+  function ensureHighlighterToolbar() {
+    if (hlToolbarEl && hlToolbarEl.isConnected) return hlToolbarEl
+    hlToolbarEl = buildHighlighterToolbar()
+    document.body.appendChild(hlToolbarEl)
+    return hlToolbarEl
+  }
+
+  function showHighlighterToolbar() {
+    const r = getActiveSelectionRange()
+    if (!r) return hideHighlighterToolbar()
+    const rect = r.getBoundingClientRect()
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
+      return hideHighlighterToolbar()
+    }
+
+    const tb = ensureHighlighterToolbar()
+    // 先以不可見但可量測的方式插入，取得尺寸後再定位。
+    tb.dataset.visible = '1'
+    const tbRect = tb.getBoundingClientRect()
+    const margin = 8
+    const winInner = window.innerWidth
+
+    // 座標一律以「頁面文件座標」（document-relative）計算：
+    //   left = rect.left + scrollX
+    //   top  = rect.top  + scrollY - toolbarHeight - margin
+    // 若逼近頁面最上緣則改秀於選取下方。
+    const scrollX = window.scrollX || window.pageXOffset || 0
+    const scrollY = window.scrollY || window.pageYOffset || 0
+
+    let left = rect.left + scrollX + rect.width / 2 - tbRect.width / 2
+    let top = rect.top + scrollY - tbRect.height - margin
+    if (rect.top < tbRect.height + margin + 4) {
+      top = rect.bottom + scrollY + margin
+    }
+    // 水平夾回視窗範圍
+    const minLeft = scrollX + 8
+    const maxLeft = scrollX + winInner - tbRect.width - 8
+    if (left < minLeft) left = minLeft
+    if (left > maxLeft) left = maxLeft
+
+    tb.style.left = left + 'px'
+    tb.style.top = top + 'px'
+  }
+
+  function hideHighlighterToolbar() {
+    if (hlToolbarEl && hlToolbarEl.isConnected) {
+      hlToolbarEl.dataset.visible = '0'
+    }
+  }
+
+  let highlighterInstalled = false
+  function installHighlighter() {
+    if (highlighterInstalled) return
+    highlighterInstalled = true
+
+    // 所有 listener 均先以 userEnableHighlighter 為閘口：關閉時直接略過
+    // 目前選取事件，不建構工具列；避免使用者切換後台開關後仍收到殘留互動。
+    const onSelMaybeChange = () => {
+      if (!userEnableHighlighter) return
+      if (hlHideTimer) clearTimeout(hlHideTimer)
+      hlHideTimer = setTimeout(() => {
+        const r = getActiveSelectionRange()
+        if (r) showHighlighterToolbar()
+        else hideHighlighterToolbar()
+      }, 180)
+    }
+
+    document.addEventListener('selectionchange', onSelMaybeChange)
+    // mouseup 後補一次校正（selectionchange 有時早於最終 selection 穩定時
+    // 間；拖曳結束以 mouseup 再對齊一次位置可減少工具列「抖動」或位移錯位）
+    document.addEventListener('mouseup', () => {
+      if (!userEnableHighlighter) return
+      setTimeout(() => {
+        const r = getActiveSelectionRange()
+        if (r) showHighlighterToolbar()
+      }, 0)
+    })
+
+    // 捲動或尺寸變動時同步更新工具列位置
+    const onReposition = () => {
+      if (!userEnableHighlighter) return
+      if (!hlToolbarEl || hlToolbarEl.dataset.visible !== '1') return
+      const r = getActiveSelectionRange()
+      if (r) showHighlighterToolbar()
+      else hideHighlighterToolbar()
+    }
+    window.addEventListener('scroll', onReposition, { passive: true })
+    window.addEventListener('resize', onReposition)
+  }
+
+  // ----- Highlighter 持久化與側邊欄耳標 -----
+  //
+  // 持久層採 chrome.storage.session：跨分頁重整、iframe 導航後保留；瀏覽
+  // 器結束時清空，符合「同一 session 回到同判決即還原塗色」之行為。
+  //
+  // 每段螢光以「文字指紋」序列化（非 DOM 路徑）：FJUD／FINT 於 data.aspx
+  // 重載時會重建 DOM，XPath／CSS 選擇器易失效；文字指紋僅依賴正文字元，
+  // 站方未改版即可穩定還原。指紋欄位：
+  //   text    - range.toString() 之目標字串
+  //   prefix  - 往前 30 字，消歧義
+  //   suffix  - 往後 30 字，消歧義
+  //   color   - 螢光色 key
+  // 還原以 prefix+text+suffix 合串先做 indexOf；若 context 不齊退回單 text
+  // 比對；皆失敗則略過該段（不拋例外，以免中斷整體還原）。
+  const HL_STORAGE_KEY_PREFIX = 'fint-hl:'
+  const HL_CTX_CHARS = 30
+
+  // 取得當前判決之持久化 key。
+  //
+  // 同一份判決可能由兩條路徑進入：
+  //   A) FJUD default.aspx 外殼以 iframe 載入 data.aspx，content.js 於
+  //      iframe 內執行，解析到 iframe detail URL 或 #txtUrl 分享網址。
+  //   B) 剪貼簿卡片「前往原文」或使用者直貼 data.aspx URL，content.js
+  //      於 top frame 執行，取得使用者貼入之原字串。
+  //
+  // 兩條 URL 常因 query 順序、額外 ot 參數或編碼差異而不等；若以全字串
+  // 作 key，同判決將被拆為兩筆 storage，使「從卡片點進來看不到既有塗色」。
+  //
+  // 解法：抽 id query 作為判決唯一識別（FJUD／FINT／內網皆採此設計，
+  // URLSearchParams 會自動解碼），與 hostname 組成 key 以區分四系統。
+  // 若 id 缺失則退回去 hash 後之全 URL。
+  function hlStorageKey() {
+    try {
+      const src = resolveSource()
+      const u = (src && src.url) || ''
+      if (!u) return ''
+      try {
+        const p = new URL(u, location.href)
+        const id = p.searchParams.get('id')
+        if (id) return HL_STORAGE_KEY_PREFIX + p.hostname + ':' + id
+      } catch (_) {}
+      return HL_STORAGE_KEY_PREFIX + u.split('#')[0]
+    } catch (_) {
+      return ''
+    }
+  }
+
+  function serializeHighlightRange(range, body) {
+    try {
+      const text = range.toString()
+      if (!text) return null
+      const pre = document.createRange()
+      pre.setStart(body, 0)
+      pre.setEnd(range.startContainer, range.startOffset)
+      const prefixFull = pre.toString()
+      const post = document.createRange()
+      post.setStart(range.endContainer, range.endOffset)
+      // body 為 Element，setEnd 以 childNodes.length 指向最末。
+      post.setEnd(body, body.childNodes.length)
+      const suffixFull = post.toString()
+      return {
+        text,
+        prefix: prefixFull.slice(-HL_CTX_CHARS),
+        suffix: suffixFull.slice(0, HL_CTX_CHARS),
+      }
+    } catch (_) {
+      return null
+    }
+  }
+
+  function snapshotAllHighlights() {
+    const body = findBodyContainer()
+    if (!body) return []
+    const out = []
+    // 依 highlightEntries 既有順序序列化；storage 陣列順序即使用者自訂排序。
+    for (const e of highlightEntries) {
+      if (!e || !e.range || e.range.collapsed) continue
+      const ser = serializeHighlightRange(e.range, body)
+      if (!ser) continue
+      out.push({ color: e.color, ...ser })
+    }
+    return out
+  }
+
+  // 每次 apply/erase/delete 都即時寫回 storage。storage.session 寫入成本
+  // 低，不 debounce 以避免「剛塗色就遇到 iframe 重整」而漏存。
+  function saveHighlightsToStorage() {
+    try {
+      if (!userEnableHighlighter) return
+      if (!chrome || !chrome.storage || !chrome.storage.session) return
+      const key = hlStorageKey()
+      if (!key) return
+      const entries = snapshotAllHighlights()
+      chrome.storage.session.set({ [key]: entries }).catch(() => {})
+    } catch (_) {}
+  }
+
+  // 以 TreeWalker 扁平化 body 內所有 text node，回傳 fullText + 區間映射；
+  // 供還原時以 O(log n) 二分查找由字元 offset 反求 node+offsetInNode。
+  function buildTextNodeMap(body) {
+    const mapping = []
+    let fullText = ''
+    try {
+      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null)
+      let node
+      while ((node = walker.nextNode())) {
+        const v = node.nodeValue || ''
+        if (!v) continue
+        const start = fullText.length
+        fullText += v
+        mapping.push({ node, start, end: fullText.length })
+      }
+    } catch (_) {}
+    return { fullText, mapping }
+  }
+
+  function locateTextNode(mapping, offset) {
+    let lo = 0
+    let hi = mapping.length - 1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const m = mapping[mid]
+      if (offset < m.start) hi = mid - 1
+      else if (offset > m.end) lo = mid + 1
+      else return m
+    }
+    return null
+  }
+
+  function deserializeHighlightEntry(entry, fullText, mapping) {
+    if (!entry || !entry.text) return null
+    const prefix = entry.prefix || ''
+    const suffix = entry.suffix || ''
+    let found = -1
+    if (prefix || suffix) {
+      found = fullText.indexOf(prefix + entry.text + suffix)
+      if (found !== -1) found += prefix.length
+    }
+    if (found === -1) found = fullText.indexOf(entry.text)
+    if (found === -1) return null
+    const absStart = found
+    const absEnd = found + entry.text.length
+    const s = locateTextNode(mapping, absStart)
+    const e = locateTextNode(mapping, absEnd)
+    if (!s || !e) return null
+    try {
+      const r = document.createRange()
+      r.setStart(s.node, absStart - s.start)
+      r.setEnd(e.node, absEnd - e.start)
+      return r
+    } catch (_) {
+      return null
+    }
+  }
+
+  // 自 storage 還原該判決的所有螢光段落；因 init 可能隨 iframe 重載重跑，
+  // 每次還原前先清空 in-memory highlightEntries（舊 Range 所指向之 text
+  // node 已失效），再由 storage 作為權威來源重建。storage 陣列既有順序即
+  // 使用者手動排序結果，push 順序直接還原，無需額外排序邏輯。
+  function loadHighlightsFromStorage() {
+    try {
+      if (!userEnableHighlighter) {
+        // 後台關閉時不還原：保持 in-memory 與 CSS Highlight 清空，且側邊
+        // 欄耳標自動隱藏（ensureHighlightsTab 計算 total=0 會移除耳標）。
+        highlightEntries = []
+        applyAllHighlights()
+        ensureHighlightsTab()
+        return Promise.resolve()
+      }
+      if (!chrome || !chrome.storage || !chrome.storage.session) {
+        ensureHighlightsTab()
+        return Promise.resolve()
+      }
+      const key = hlStorageKey()
+      if (!key) {
+        ensureHighlightsTab()
+        return Promise.resolve()
+      }
+      const body = findBodyContainer()
+      if (!body) return Promise.resolve()
+      return chrome.storage.session
+        .get({ [key]: [] })
+        .then((result) => {
+          const list = (result && result[key]) || []
+          highlightEntries = []
+          if (!list.length) {
+            applyAllHighlights()
+            ensureHighlightsTab()
+            return
+          }
+          const { fullText, mapping } = buildTextNodeMap(body)
+          for (const entry of list) {
+            if (!entry || !entry.color) continue
+            if (HL_COLOR_KEYS.indexOf(entry.color) === -1) continue
+            const r = deserializeHighlightEntry(entry, fullText, mapping)
+            if (!r) continue
+            highlightEntries.push({ color: entry.color, range: r })
+          }
+          applyAllHighlights()
+          ensureHighlightsTab()
+        })
+        .catch(() => {})
+    } catch (_) {
+      return Promise.resolve()
+    }
+  }
+
+  // ----- 側邊欄「螢光筆」耳標 -----
+  //
+  // 與判決架構、參照並列之 fint-tab-group，扁平呈現所有螢光段落。內容由
+  // highlightEntries 即時推導，DOM 不存狀態；每次變動均透過 ensureHigh-
+  // lightsTab() 重繪。耳標僅於段落數 > 0 時存在，未使用時不佔側邊欄
+  // （與參照耳標同策略）。
+  function buildHighlightsTabDom() {
+    const group = hostDoc.createElement('div')
+    group.className = 'fint-tab-group'
+    group.dataset.group = 'highlights'
+
+    const tab = hostDoc.createElement('div')
+    tab.className = 'fint-outline-tab fint-highlights-tab'
+    tab.textContent = '螢光筆'
+    group.appendChild(tab)
+
+    const card = hostDoc.createElement('div')
+    card.className = 'fint-outline-card fint-highlights-card'
+
+    const head = hostDoc.createElement('div')
+    head.className = 'fint-outline-head'
+    head.textContent = '螢光筆段落'
+    card.appendChild(head)
+
+    const list = hostDoc.createElement('div')
+    list.className = 'fint-highlights-list'
+    card.appendChild(list)
+
+    group.appendChild(card)
+    return group
+  }
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild)
+  }
+
+  // 建構單筆列 DOM：拖曳把手 + 色點 + 全文（點擊跳轉）+ 移除鈕。
+  // index 依 visibleEntries 序列編號，drag handler 以此索引進行 splice。
+  function buildHighlightEntryDom(entry, index) {
+    const row = hostDoc.createElement('div')
+    row.className = 'fint-hl-entry'
+    row.draggable = true
+    row.dataset.hlIndex = String(index)
+
+    const handle = hostDoc.createElement('span')
+    handle.className = 'fint-hl-handle'
+    // 兩欄六點的常見拖曳把手，vertical 呈現；不作 button，避免拖曳事件
+    // 被 button default action 吞掉。
+    handle.textContent = '⋮⋮'
+    handle.title = '拖曳以調整順序'
+    handle.setAttribute('aria-hidden', 'true')
+    row.appendChild(handle)
+
+    const dot = hostDoc.createElement('span')
+    dot.className = 'fint-hl-dot fint-hl-swatch-' + entry.color
+    row.appendChild(dot)
+
+    const jumpBtn = hostDoc.createElement('button')
+    jumpBtn.type = 'button'
+    jumpBtn.className = 'fint-hl-jump'
+    // 顯示完整段落全文（以 cleanCopyText 正規化：軟換行→空白、合併
+    // 多重空白、移除 CJK 間殘留空格，與複製貼上的結果一致），不再截
+    // 斷；CSS 側負責換行與卡片內捲動。
+    jumpBtn.textContent = cleanCopyText(entry.range.toString())
+    jumpBtn.title = '點擊跳轉至螢光筆段落'
+    jumpBtn.addEventListener('click', () => {
+      try {
+        scrollAndHighlightRange(entry.range)
+      } catch (_) {}
+    })
+    row.appendChild(jumpBtn)
+
+    const del = hostDoc.createElement('button')
+    del.type = 'button'
+    del.className = 'fint-hl-del'
+    del.setAttribute('aria-label', '移除此螢光筆')
+    del.title = '移除'
+    del.textContent = '×'
+    del.addEventListener('click', (ev) => {
+      ev.preventDefault()
+      ev.stopPropagation()
+      removeHighlightEntry(Number(row.dataset.hlIndex))
+    })
+    row.appendChild(del)
+
+    // ----- 拖曳排序 -----
+    row.addEventListener('dragstart', (ev) => {
+      try {
+        ev.dataTransfer.effectAllowed = 'move'
+        ev.dataTransfer.setData('text/x-fint-hl', row.dataset.hlIndex)
+      } catch (_) {}
+      row.classList.add('fint-hl-entry-dragging')
+    })
+    row.addEventListener('dragend', () => {
+      row.classList.remove('fint-hl-entry-dragging')
+    })
+    row.addEventListener('dragover', (ev) => {
+      ev.preventDefault()
+      try {
+        ev.dataTransfer.dropEffect = 'move'
+      } catch (_) {}
+      const rect = row.getBoundingClientRect()
+      const before = ev.clientY - rect.top < rect.height / 2
+      row.classList.toggle('fint-hl-drop-before', before)
+      row.classList.toggle('fint-hl-drop-after', !before)
+    })
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('fint-hl-drop-before', 'fint-hl-drop-after')
+    })
+    row.addEventListener('drop', (ev) => {
+      ev.preventDefault()
+      let fromIdx = NaN
+      try {
+        fromIdx = Number(ev.dataTransfer.getData('text/x-fint-hl'))
+      } catch (_) {}
+      const toIdx = Number(row.dataset.hlIndex)
+      const before = row.classList.contains('fint-hl-drop-before')
+      row.classList.remove('fint-hl-drop-before', 'fint-hl-drop-after')
+      if (!Number.isFinite(fromIdx) || !Number.isFinite(toIdx)) return
+      moveHighlightEntry(fromIdx, toIdx, before)
+    })
+
+    return row
+  }
+
+  function renderHighlightsList(listEl, headEl) {
+    clearChildren(listEl)
+    const visibleEntries = highlightEntries.filter(
+      (e) => e && e.range && !e.range.collapsed,
+    )
+    visibleEntries.forEach((e, idx) => {
+      listEl.appendChild(buildHighlightEntryDom(e, idx))
+    })
+    if (headEl) {
+      headEl.textContent = `螢光筆段落（共 ${visibleEntries.length} 則）`
+    }
+  }
+
+  function ensureHighlightsTab() {
+    const aside = hostDoc.getElementById('fint-outline-sidebar')
+    if (!aside) return
+    const total = highlightEntries.filter(
+      (e) => e && e.range && !e.range.collapsed,
+    ).length
+    let group = aside.querySelector('.fint-tab-group[data-group="highlights"]')
+    if (!total) {
+      if (group) group.remove()
+      return
+    }
+    if (!group) {
+      group = buildHighlightsTabDom()
+      aside.appendChild(group)
+    }
+    const list = group.querySelector('.fint-highlights-list')
+    const head = group.querySelector('.fint-outline-head')
+    renderHighlightsList(list, head)
+  }
+
+  function removeHighlightEntry(index) {
+    // renderHighlightsList 只輸出 valid（!collapsed）entry，其 index 與
+    // visibleEntries 對齊，但 highlightEntries 可能夾雜 collapsed 殘餘。
+    // 先過濾為與 UI 同步之序列，再對應原始陣列位置移除。
+    const visible = highlightEntries.filter(
+      (e) => e && e.range && !e.range.collapsed,
+    )
+    if (index < 0 || index >= visible.length) return
+    const target = visible[index]
+    highlightEntries = highlightEntries.filter((e) => e !== target)
+    applyAllHighlights()
+    ensureHighlightsTab()
+    saveHighlightsToStorage()
+  }
+
+  // 調整螢光筆順序。fromIdx / toIdx 皆為 visibleEntries 中的索引（= UI 上
+  // 列位置）；before 代表放置於目標列上緣（之前）或下緣（之後）。內部
+  // 轉換成 highlightEntries 的原始索引後 splice。因 visible 只濾除
+  // collapsed 項，若陣列無 collapsed 殘餘則 visible 與 highlightEntries
+  // 為同一序列，轉換成立即可；否則以物件參考定位求真實位置。
+  function moveHighlightEntry(fromIdx, toIdx, before) {
+    if (fromIdx === toIdx) return
+    const visible = highlightEntries.filter(
+      (e) => e && e.range && !e.range.collapsed,
+    )
+    if (
+      fromIdx < 0 ||
+      fromIdx >= visible.length ||
+      toIdx < 0 ||
+      toIdx >= visible.length
+    ) {
+      return
+    }
+    const moved = visible[fromIdx]
+    const target = visible[toIdx]
+    // 從原陣列移除 moved 並記錄其原位置；之後再依 target 位置插回。
+    let base = highlightEntries.filter((e) => e !== moved)
+    let insertAt = base.indexOf(target)
+    if (insertAt === -1) return
+    if (!before) insertAt += 1
+    if (insertAt < 0) insertAt = 0
+    if (insertAt > base.length) insertAt = base.length
+    base.splice(insertAt, 0, moved)
+    highlightEntries = base
+    ensureHighlightsTab()
+    saveHighlightsToStorage()
+  }
+
   // ----- Main -----
   //
   // FJUD 的判決內容動態載入：default.aspx 經 iframe 或 AJAX 注入 data.aspx，
@@ -2278,6 +3058,10 @@
       installCopyHandler()
       copyHandlerInstalled = true
     }
+    installHighlighter()
+    // 側邊欄建構完成後自 storage.session 還原同判決之螢光筆段落；非同步
+    // 進行，不阻塞 sidebar 顯示。還原完成後自動插入／更新「螢光筆」耳標。
+    loadHighlightsFromStorage()
     sidebarBuilt = true
     return true
   }
@@ -2287,6 +3071,12 @@
     if (old) old.remove()
     const oldToast = hostDoc.getElementById('fint-copy-toast')
     if (oldToast) oldToast.remove()
+    // 螢光筆工具列：init 重跑時一併清掉殘留 DOM；Highlight 註冊會在下次
+    // applyAllHighlights 時依 highlightEntries 狀態重建（此處不主動清零，
+    // 因同次分頁生命週期內使用者已塗的顏色應維持）。
+    const oldHl = document.getElementById('fint-hl-toolbar')
+    if (oldHl) oldHl.remove()
+    hlToolbarEl = null
   }
 
   let currentObserver = null

@@ -3,6 +3,7 @@
 
 const SITES = ['fint', 'fjud', 'intraj_fint', 'intraj_fjud']
 const DEFAULTS = { fint: 'left', fjud: 'left', intraj_fint: 'left', intraj_fjud: 'left' }
+const HL_COLOR_KEYS = ['yellow', 'red', 'orange', 'green', 'blue', 'purple']
 
 function clampDepth(value) {
   const n = Number(value)
@@ -19,6 +20,8 @@ function loadSettings() {
       appendCitation: true,
       maxDepth: 3,
       showCitations: true,
+      enableHighlighter: true,
+      highlighterColors: HL_COLOR_KEYS,
     },
     (result) => {
       const positions = Object.assign({}, DEFAULTS, result.positions || {})
@@ -39,6 +42,20 @@ function loadSettings() {
         'input[name="showCitations"][value="' + showCit + '"]',
       )
       if (scInput) scInput.checked = true
+      const enableHl = result.enableHighlighter === false ? 'off' : 'on'
+      const ehInput = document.querySelector(
+        'input[name="enableHighlighter"][value="' + enableHl + '"]',
+      )
+      if (ehInput) ehInput.checked = true
+      const hlColors = Array.isArray(result.highlighterColors)
+        ? result.highlighterColors
+        : HL_COLOR_KEYS
+      HL_COLOR_KEYS.forEach((key) => {
+        const box = document.querySelector(
+          'input[name="highlighterColor"][value="' + key + '"]',
+        )
+        if (box) box.checked = hlColors.indexOf(key) !== -1
+      })
       const depth = clampDepth(result.maxDepth)
       const dInput = document.querySelector(
         'input[name="maxDepth"][value="' + depth + '"]',
@@ -60,10 +77,28 @@ function saveSettings() {
     'input[name="showCitations"]:checked',
   )
   const showCitations = scChecked ? scChecked.value === 'on' : true
+  const ehChecked = document.querySelector(
+    'input[name="enableHighlighter"]:checked',
+  )
+  const enableHighlighter = ehChecked ? ehChecked.value === 'on' : true
+  const highlighterColors = []
+  HL_COLOR_KEYS.forEach((key) => {
+    const box = document.querySelector(
+      'input[name="highlighterColor"][value="' + key + '"]',
+    )
+    if (box && box.checked) highlighterColors.push(key)
+  })
   const dChecked = document.querySelector('input[name="maxDepth"]:checked')
   const maxDepth = dChecked ? clampDepth(dChecked.value) : 3
   chrome.storage.sync.set(
-    { positions, appendCitation, maxDepth, showCitations },
+    {
+      positions,
+      appendCitation,
+      maxDepth,
+      showCitations,
+      enableHighlighter,
+      highlighterColors,
+    },
     () => {
       const status = document.getElementById('status')
       if (!status) return
@@ -82,4 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('input[type=radio]').forEach((el) => {
     el.addEventListener('change', saveSettings)
   })
+  // 顏色選擇為 checkbox 群組，分別監聽以即時儲存。
+  document
+    .querySelectorAll('input[type=checkbox][name="highlighterColor"]')
+    .forEach((el) => {
+      el.addEventListener('change', saveSettings)
+    })
 })

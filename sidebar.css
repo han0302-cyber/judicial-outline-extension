@@ -51,7 +51,7 @@
   transform: translateX(0);
 }
 
-/* 頁籤群組（tab group）：每組 = 一個垂直 tab + 一張浮出卡片。多個 group
+/* 耳標群組（tab group）：每組 = 一個垂直 tab + 一張浮出卡片。多個 group
    垂直堆疊於 aside 左緣，彼此獨立 hover，不互相覆蓋。 */
 #fint-outline-sidebar .fint-tab-group {
   position: relative;
@@ -81,11 +81,17 @@
   user-select: none;
 }
 
-/* 「參照」頁籤視覺上與「判決架構」同色系但略短，避免兩者長度一致時視覺過重；
+/* 「參照」耳標視覺上與「判決架構」同色系但略短，避免兩者長度一致時視覺過重；
    仍維持相同字級、對比與陰影。 */
 #fint-outline-sidebar .fint-citations-tab {
   height: 96px;
   letter-spacing: 0.32em;
+}
+
+/* 「螢光筆」耳標採更短高度，與既有耳標形成階梯式層次；文字三字留較緊字距。 */
+#fint-outline-sidebar .fint-highlights-tab {
+  height: 80px;
+  letter-spacing: 0.28em;
 }
 
 #fint-outline-sidebar .fint-outline-card {
@@ -120,7 +126,7 @@
 }
 
 /* 參照卡片預設較寬，容納意旨段落摘錄與案號 badge。
- * 參照頁籤位於架構頁籤下方（aside top 96px + 架構 tab 128px + 間距 10px ≈ 234px
+ * 參照耳標位於架構耳標下方（aside top 96px + 架構 tab 128px + 間距 10px ≈ 234px
  * 於視窗頂端），因此 max-height 需較架構卡片更小，避免卡片底部溢出視窗。 */
 #fint-outline-sidebar .fint-citations-card {
   width: 440px;
@@ -249,7 +255,7 @@
   color: inherit;
 }
 
-/* ----- 參照頁籤：最高法院引文清單 ----- */
+/* ----- 參照耳標：最高法院引文清單 ----- */
 #fint-outline-sidebar .fint-citations-list {
   display: flex;
   flex-direction: column;
@@ -438,4 +444,250 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
+}
+
+/* ----- 螢光筆（Highlighter）----- */
+
+/* 六色高亮底色：以 CSS Highlight API 套用於使用者選取範圍之 Live Range。
+ * 背景採半透明亮色，保留文字原有對比度；未指定 color，文字色沿用頁面
+ * 原樣以免干擾判決排版。命名與 content.js 之 applyAllHighlights 對齊
+ * （'fint-hl-<key>'）。 */
+::highlight(fint-hl-yellow) {
+  background-color: rgba(255, 236, 88, 0.55);
+  color: inherit;
+}
+::highlight(fint-hl-red) {
+  background-color: rgba(248, 113, 113, 0.45);
+  color: inherit;
+}
+::highlight(fint-hl-orange) {
+  background-color: rgba(251, 146, 60, 0.48);
+  color: inherit;
+}
+::highlight(fint-hl-green) {
+  background-color: rgba(74, 222, 128, 0.45);
+  color: inherit;
+}
+::highlight(fint-hl-blue) {
+  background-color: rgba(96, 165, 250, 0.42);
+  color: inherit;
+}
+::highlight(fint-hl-purple) {
+  background-color: rgba(192, 132, 252, 0.42);
+  color: inherit;
+}
+
+/* 浮動工具列：顏色圓點 + 清除。樣式延續既有 toast 的深色膠囊外觀，於
+ * 選取文字上方浮出，不改變頁面既有 layout。以 document-relative 絕對定
+ * 位，content.js 會隨捲動／尺寸變動同步調整 left／top。 */
+#fint-hl-toolbar {
+  position: absolute;
+  z-index: 2147483002;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: #1e293b;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.28);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#fint-hl-toolbar[data-visible="1"] {
+  display: inline-flex;
+}
+
+#fint-hl-toolbar .fint-hl-swatch {
+  all: unset;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+#fint-hl-toolbar .fint-hl-swatch:hover {
+  transform: scale(1.18);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+#fint-hl-toolbar .fint-hl-swatch:active {
+  transform: scale(1.05);
+}
+
+/* 六色圓點底色（對應 ::highlight 規則，但 swatch 採較飽和實色以便識別）。 */
+#fint-hl-toolbar .fint-hl-swatch-yellow { background: #fde047; }
+#fint-hl-toolbar .fint-hl-swatch-red    { background: #f87171; }
+#fint-hl-toolbar .fint-hl-swatch-orange { background: #fb923c; }
+#fint-hl-toolbar .fint-hl-swatch-green  { background: #4ade80; }
+#fint-hl-toolbar .fint-hl-swatch-blue   { background: #60a5fa; }
+#fint-hl-toolbar .fint-hl-swatch-purple { background: #c084fc; }
+
+#fint-hl-toolbar .fint-hl-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 0 2px;
+}
+
+#fint-hl-toolbar .fint-hl-erase {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+#fint-hl-toolbar .fint-hl-erase:hover {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1e293b;
+}
+
+/* ----- 螢光筆耳標（側邊欄）----- */
+
+/* 螢光筆耳標位於參照耳標之下（若兩者皆存在），或緊接架構耳標之下。
+ * 寬度略寬於架構卡片，容納段落節錄；max-height 留邊避免溢出視窗底。 */
+#fint-outline-sidebar .fint-highlights-card {
+  width: 420px;
+  max-height: calc(100vh - 340px);
+}
+
+/* 扁平清單：使用者可自由跨色拖曳調整順序。單列 = 拖曳把手 + 色點 +
+ * 全文（點擊跳轉）+ 移除鈕。顏色以色點呈現，不再以左側 group 色條分群，
+ * 以便提供最大化的排序自由度。 */
+#fint-outline-sidebar .fint-highlights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#fint-outline-sidebar .fint-hl-entry {
+  display: flex;
+  /* 全文多行時色點與 × 對齊首行頂部，避免擠在段落垂直中央造成視覺偏移。 */
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  cursor: grab;
+  /* 上下邊線預留給 drop 指示使用；平時透明以維持清單緊湊。 */
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  transition: background 0.12s ease;
+}
+
+#fint-outline-sidebar .fint-hl-entry:hover {
+  background: #f8fafc;
+}
+
+/* 拖曳中本列半透明以示區別；cursor 改 grabbing。 */
+#fint-outline-sidebar .fint-hl-entry-dragging {
+  opacity: 0.55;
+  cursor: grabbing;
+}
+
+/* 拖曳放置指示：依滑鼠上／下半邊決定放在目標列的上緣或下緣。 */
+#fint-outline-sidebar .fint-hl-entry.fint-hl-drop-before {
+  border-top-color: var(--fint-primary);
+}
+#fint-outline-sidebar .fint-hl-entry.fint-hl-drop-after {
+  border-bottom-color: var(--fint-primary);
+}
+
+/* 拖曳把手：兩欄六點符號，旋轉以垂直呈現；僅做視覺提示，不攔截事件
+ * （letter-spacing 緊縮讓兩欄點靠得近，看起來像一個 handle）。 */
+#fint-outline-sidebar .fint-hl-handle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #cbd5e1;
+  letter-spacing: -3px;
+  margin-top: 2px;
+  user-select: none;
+  cursor: grab;
+}
+
+#fint-outline-sidebar .fint-hl-entry:hover .fint-hl-handle {
+  color: #64748b;
+}
+
+#fint-outline-sidebar .fint-hl-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  /* 與首行文字基線對齊（line-height:1.6 時約 9-10px 偏移即可）。 */
+  margin-top: 6px;
+}
+
+#fint-outline-sidebar .fint-hl-dot.fint-hl-swatch-yellow { background: #fde047; }
+#fint-outline-sidebar .fint-hl-dot.fint-hl-swatch-red    { background: #f87171; }
+#fint-outline-sidebar .fint-hl-dot.fint-hl-swatch-orange { background: #fb923c; }
+#fint-outline-sidebar .fint-hl-dot.fint-hl-swatch-green  { background: #4ade80; }
+#fint-outline-sidebar .fint-hl-dot.fint-hl-swatch-blue   { background: #60a5fa; }
+#fint-outline-sidebar .fint-hl-dot.fint-hl-swatch-purple { background: #c084fc; }
+
+#fint-outline-sidebar .fint-hl-jump {
+  all: unset;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #334155;
+  padding: 4px 6px;
+  border-radius: 4px;
+  /* 全文呈現：允許換行並處理極長 token；長段落交由卡片 overflow-y:auto
+     捲動。line-height 略放寬，多行閱讀較舒適。 */
+  white-space: normal;
+  word-break: break-word;
+  text-align: left;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+#fint-outline-sidebar .fint-hl-jump:hover {
+  color: var(--fint-primary-dark, #0f172a);
+  background: var(--fint-primary-soft);
+}
+
+#fint-outline-sidebar .fint-hl-del {
+  all: unset;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1;
+  /* 與首行對齊，全文多行時 × 停在段落起點旁。 */
+  margin-top: 2px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+#fint-outline-sidebar .fint-hl-del:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
 }

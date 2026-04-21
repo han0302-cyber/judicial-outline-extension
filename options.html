@@ -175,6 +175,65 @@
       color: var(--fg);
       font-weight: 500;
     }
+    /* 螢光筆顏色選擇：六個 checkbox 以色塊 pill 形式並排，勾選呈實底，
+       未勾選呈淺框。至少保留一色（零勾選時 content script 會退回全選）。 */
+    .hl-color-card {
+      padding: 16px 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+    .hl-color-card .site-name { margin-bottom: 4px; }
+    .hl-color-card .site-desc { margin-bottom: 14px; }
+    .hl-color-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .hl-color-pill {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px 8px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      cursor: pointer;
+      background: #ffffff;
+      transition: background 0.15s, border-color 0.15s;
+      user-select: none;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .hl-color-pill input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .hl-color-pill .hl-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(15, 23, 42, 0.18);
+      flex-shrink: 0;
+    }
+    .hl-color-pill .hl-swatch-yellow { background: #fde047; }
+    .hl-color-pill .hl-swatch-red    { background: #f87171; }
+    .hl-color-pill .hl-swatch-orange { background: #fb923c; }
+    .hl-color-pill .hl-swatch-green  { background: #4ade80; }
+    .hl-color-pill .hl-swatch-blue   { background: #60a5fa; }
+    .hl-color-pill .hl-swatch-purple { background: #c084fc; }
+    .hl-color-pill:hover {
+      border-color: var(--dim);
+      background: #f8fafc;
+    }
+    .hl-color-pill:has(input:checked) {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--fg);
+      font-weight: 500;
+    }
     .footer {
       margin-top: 40px;
       padding-top: 20px;
@@ -204,16 +263,60 @@
       </div>
     </div>
 
-    <div class="section-title">參照耳標</div>
+    <div class="section-title">參照</div>
 
     <div class="site-row">
       <div>
-        <div class="site-name">顯示「參照」頁籤</div>
-        <div class="site-desc">抽取判決正文中最高法院判決／裁定、大法庭裁定、庭會議決議之引用，列為獨立頁籤；關閉後僅保留「判決架構」耳標，正文亦不再對括號附記長駐高亮。</div>
+        <div class="site-name">啟用參照</div>
+        <div class="site-desc">抽取判決正文中最高法院判決／裁定、大法庭裁定、庭會議決議之引用，列為獨立耳標；關閉後僅保留「判決架構」耳標，正文亦不再對括號附記長駐高亮。</div>
       </div>
       <div class="radio-group">
         <label><input type="radio" name="showCitations" value="on">開</label>
         <label><input type="radio" name="showCitations" value="off">關</label>
+      </div>
+    </div>
+
+    <div class="section-title">螢光筆</div>
+
+    <div class="site-row">
+      <div>
+        <div class="site-name">啟用螢光筆</div>
+        <div class="site-desc">選取判決正文後浮出工具列，點擊色塊即上色；已上色段落於瀏覽器關閉前皆持續保留，並列於螢光筆耳標供跳轉。關閉後停用工具列與耳標，儲存的標記仍保留，再次開啟即還原。</div>
+      </div>
+      <div class="radio-group">
+        <label><input type="radio" name="enableHighlighter" value="on">開</label>
+        <label><input type="radio" name="enableHighlighter" value="off">關</label>
+      </div>
+    </div>
+
+    <div class="hl-color-card">
+      <div class="site-name">螢光筆顏色</div>
+      <div class="site-desc">僅勾選的顏色會顯示於工具列；未勾選色系不出現可點選按鈕。若全部取消勾選，視同未設定並退回預設六色。</div>
+      <div class="hl-color-grid">
+        <label class="hl-color-pill">
+          <input type="checkbox" name="highlighterColor" value="yellow">
+          <span class="hl-swatch hl-swatch-yellow"></span>黃
+        </label>
+        <label class="hl-color-pill">
+          <input type="checkbox" name="highlighterColor" value="red">
+          <span class="hl-swatch hl-swatch-red"></span>紅
+        </label>
+        <label class="hl-color-pill">
+          <input type="checkbox" name="highlighterColor" value="orange">
+          <span class="hl-swatch hl-swatch-orange"></span>橘
+        </label>
+        <label class="hl-color-pill">
+          <input type="checkbox" name="highlighterColor" value="green">
+          <span class="hl-swatch hl-swatch-green"></span>綠
+        </label>
+        <label class="hl-color-pill">
+          <input type="checkbox" name="highlighterColor" value="blue">
+          <span class="hl-swatch hl-swatch-blue"></span>藍
+        </label>
+        <label class="hl-color-pill">
+          <input type="checkbox" name="highlighterColor" value="purple">
+          <span class="hl-swatch hl-swatch-purple"></span>紫
+        </label>
       </div>
     </div>
 

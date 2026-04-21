@@ -7,10 +7,10 @@
 ## Short description（≤132 字元）
 
 ### 繁體中文
-> 裁判書頁面加上「判決架構」導覽、最高法院引文參照清單、智慧複製（去分行、附字號），並提供瀏覽器側邊欄「判決剪貼簿」跨分頁保存並匯出複製過的段落。
+> 裁判書頁面加上「判決架構」導覽、最高法院引文參照清單、六色螢光筆（可拖曳排序、關瀏覽器前保留）、智慧複製（去分行、附字號），並提供瀏覽器側邊欄「判決剪貼簿」跨分頁保存並匯出複製過的段落。
 
 ### English
-> Judgment outline sidebar, Supreme Court citation panel, smart copy (strip line breaks + append citation), and a browser side panel clipboard to save and export copied passages across tabs.
+> Judgment outline sidebar, Supreme Court citation panel, six-color highlighter (drag-to-reorder, persisted until browser close), smart copy (strip line breaks + append citation), and a browser side panel clipboard to save and export copied passages across tabs.
 
 ---
 
@@ -23,8 +23,11 @@
 
 側欄會自動跳過引號內被引用的條文（例如「按 X 法第 N 條規定：⋯一、⋯二、⋯」），不會把法條條款誤抓成本篇判決的大綱；卡片寬度也會依當下展開的最深層級自動調整，淺判決保持窄、深判決自動加寬避免標籤被截斷。
 
-🏛 **參照頁籤（裁判意旨引文清單）**
-側邊欄另設獨立「參照」頁籤，抽取判決正文所有權威意旨引用並彙整為清單，共涵蓋七類實務寫法：最高法院判決／裁定（`最高法院112年度台上字第187號`）、最高法院大法庭裁定（`最高法院刑事大法庭109年度台上大字第1869號`）、最高法院民刑事庭會議決議（`最高法院94年度第6、7次刑事庭會議決議`，支援多次編號）、法律座談會決議／審查意見（`本院暨所屬法院101年法律座談會民執類提案第18號決議`，涵蓋高院暨所屬法院與高院分院）、大法官釋字解釋（`司法院釋字第679號解釋`）、憲法法庭判決／裁定（`憲法法庭113年憲判字第3號判決`）、最高行政法院庭長法官聯席會議決議（`最高行政法院98年度6月份第1次庭長法官聯席會議決議`）。同一組括號內以頓號並列、第二筆以後省略「最高法院」前綴、跨類混列的寫法亦能逐一拆分並分別歸類。每一筆條目顯示案號 badge 與意旨段落前 90 字摘要（限於同段落內回溯，不跨段抓取），點擊即跳轉至該段落並暫態鵝黃高亮，再點一次清除；七類 badge 依類別分色（主題色／暖琥珀／中性灰／藕紫／深玫瑰紅／淺玫瑰紅／青綠），利於快速辨識。正文中的 `（…）` 引文附記同步以柔和天藍灰底長駐高亮。
+🏛 **參照耳標（裁判意旨引文清單）**
+側邊欄另設獨立「參照」耳標，抽取判決正文所有權威意旨引用並彙整為清單，共涵蓋七類實務寫法：最高法院判決／裁定（`最高法院112年度台上字第187號`）、最高法院大法庭裁定（`最高法院刑事大法庭109年度台上大字第1869號`）、最高法院民刑事庭會議決議（`最高法院94年度第6、7次刑事庭會議決議`，支援多次編號）、法律座談會決議／審查意見（`本院暨所屬法院101年法律座談會民執類提案第18號決議`，涵蓋高院暨所屬法院與高院分院）、大法官釋字解釋（`司法院釋字第679號解釋`）、憲法法庭判決／裁定（`憲法法庭113年憲判字第3號判決`）、最高行政法院庭長法官聯席會議決議（`最高行政法院98年度6月份第1次庭長法官聯席會議決議`）。同一組括號內以頓號並列、第二筆以後省略「最高法院」前綴、跨類混列的寫法亦能逐一拆分並分別歸類。每一筆條目顯示案號 badge 與意旨段落前 90 字摘要（限於同段落內回溯，不跨段抓取），點擊即跳轉至該段落並暫態鵝黃高亮，再點一次清除；七類 badge 依類別分色（主題色／暖琥珀／中性灰／藕紫／深玫瑰紅／淺玫瑰紅／青綠），利於快速辨識。正文中的 `（…）` 引文附記同步以柔和天藍灰底長駐高亮。
+
+🖍 **螢光筆（六色）**
+選取判決正文後於文字上方浮出工具列，點擊六色（黃／紅／橘／綠／藍／紫）色塊即上色，另附「清除」鈕可抹除與選取重疊之既有標記。視覺呈現採 CSS Highlight API（每色註冊為一組 `::highlight(fint-hl-<color>)`），零 DOM 變動，不與既有階層耳標及引文長駐高亮衝突；同段可多色疊色。側邊欄另設「螢光筆」耳標，與「判決架構／參照」並列，完整呈現每段螢光全文（非摘要），點擊即捲回原文並以黃色暫態高亮；右側「×」鈕即時移除單段，左側拖曳把手可跨顏色任意重排。段落以文字指紋序列化至 `chrome.storage.session`（key 採 hostname + 判決 `id` query），關閉瀏覽器前持續保留；同一 session 內自剪貼簿卡片回到原文、或直貼 `data.aspx?id=...` 直連網址，皆能還原同一份標記。後台可設「啟用螢光筆」總開關與「螢光筆顏色」六色勾選。
 
 ✂️ **智慧複製**
 選取任何一段判決文字後複製，自動移除換行與中日韓字元間的多餘空白，並於尾端附上「（<裁判字號>意旨參照）」，方便直接貼進書狀或筆記。英數字之間的空格（如 "NT 300"）會被保留。字號附加功能可在設定頁或側邊欄頂端一鍵關閉。另提供 **Cmd+X / Ctrl+X** 快速鍵：同樣正規化後寫入剪貼簿，但不存入剪貼簿卡片，適用於僅需一次性貼到外部工具、不希望累積卡片清單的情境。
@@ -38,8 +41,10 @@
 
 ⚙️ **後台設定頁面**
   　• 「複製時自動附上裁判字號」開關（預設：開），亦可於判決剪貼簿側邊欄頂端即時切換，兩端共用同一設定
-  　• 「顯示參照頁籤」開關（預設：開），關閉後僅保留「判決架構」耳標，正文亦不再長駐高亮括號附記
-  　• 法令判解系統、裁判書系統、內網判解函釋、內網裁判書系統的「判決架構」耳標可分別設定停靠在頁面左側或右側
+  　• 「啟用參照」開關（預設：開），關閉後僅保留「判決架構」耳標，正文亦不再長駐高亮括號附記
+  　• 「啟用螢光筆」開關（預設：開），關閉後停用工具列與螢光筆耳標，儲存之標記保留，再次開啟即還原
+  　• 「螢光筆顏色」六色複選（黃／紅／橘／綠／藍／紫），未勾選之色不出現於工具列；零勾選時退回預設全選
+  　• 法令判解系統、裁判書系統、內網判解函釋、內網裁判書系統之「耳標位置」（左／右）可分別設定，三個耳標（判決架構／參照／螢光筆）同步遵循
   　• 「展開深度」可在 1 到 6 層之間調整（預設 3）：
   　　　1 — 主文／事實／理由／附表 + 壹、貳、參
   　　　2 — 再加上 一、二、三
@@ -67,8 +72,16 @@ https://github.com/han0302-cyber/judicial-outline-extension
 **適合誰**
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
 
+🆕 **v0.2.7 更新**
+  • 新增**六色螢光筆**：選取判決正文後浮出工具列，點擊六色（黃／紅／橘／綠／藍／紫）色塊即上色，另附「清除」鈕抹除重疊之既有標記；採 CSS Highlight API 上色，零 DOM 變動，不與既有階層耳標及引文長駐高亮衝突
+  • **螢光筆耳標**：側邊欄增設與「判決架構／參照」並列之獨立耳標，完整呈現每段螢光全文（非摘要），點擊即捲回原文並以黃色暫態高亮；右側「×」鈕即時移除單段
+  • **拖曳排序**：螢光筆耳標內每列提供拖曳把手，可跨顏色任意重排，放開瞬間即寫回 storage，回到同判決仍維持使用者自訂順序
+  • **Session 級持久化**：段落以文字指紋（`text` + 前後 30 字 `prefix`／`suffix`）序列化至 `chrome.storage.session`，瀏覽器關閉前持續保留；key 採 hostname + 判決 `id` query，使 iframe 路徑（default.aspx → iframe）與直連路徑（`data.aspx?id=...`）共享同一筆紀錄，不受 URL 編碼差異影響
+  • **後台三項新增**：「啟用螢光筆」總開關、「螢光筆顏色」六色複選、後台分類重整為「複製設定／參照／螢光筆／耳標位置／展開深度」五區；「啟用參照」取代原「顯示參照耳標」命名
+  • **無層級標記時不渲染「判決架構」耳標**：未偵測到編號階層之頁面（簡易判決、純段落釋字文稿等）直接省略耳標，側邊欄保持精簡
+
 🆕 **v0.2.6 更新**
-  • 側邊欄新增「**參照**」頁籤：抽取判決正文所有裁判意旨引用，彙整為獨立清單，點擊即跳轉至被引段落並暫態高亮
+  • 側邊欄新增「**參照**」耳標：抽取判決正文所有裁判意旨引用，彙整為獨立清單，點擊即跳轉至被引段落並暫態高亮
   • **八類意旨引用完整涵蓋**：最高法院判決／裁定、最高法院大法庭裁定、最高法院民刑事庭會議決議（含「第6、7次」多次編號）、法律座談會決議／審查意見（本院暨所屬法院、高院暨所屬法院、高院分院等）、大法官釋字解釋、憲法法庭判決／裁定／暫時處分／補充判決、最高行政法院判決／裁定、最高行政法院庭長法官聯席會議決議
   • **同一括號內多案號拆分**：以頓號並列、第二筆以後省略前綴、跨類混列寫法皆可正確拆分並分別歸類
   • **隱含「第N號」後續案號回溯**：實務常見「釋字第770號、第488號」或「最高法院90年度台上字第1639號、第2215號、94年度台上字第115號、第2059號」等省略前綴之寫法，解析時依前置 explicit 案號之年度／字別（或釋字屬性）補齊 label，使同一括號內全部案號完整呈現
@@ -152,6 +165,9 @@ https://github.com/han0302-cyber/judicial-outline-extension
 📑 **Judgment outline sidebar**
 Automatically detects the full 6-level Taiwanese legal numbering hierarchy — from top-level 壹/貳 → 一/二 → (一)/㈠ → 1./⒈/１． → (1)/⑴/（１） → ①/②/③ — plus the section headings 主文/事實/理由/事實及理由 and trailing 附表 blocks (including 附表一, 附表甲, 附表壹, 附表1 variants). Builds a clickable table of contents on the left (or right, configurable) edge of the page. Clicking an item smoothly scrolls to the corresponding paragraph, with the sticky header offset baked in. Quoted statute citations (e.g. "按 X 法第 N 條規定：⋯一、⋯二、⋯") are skipped so the outline reflects only the ruling's own structure. Card width auto-adjusts to the deepest expanded level, keeping shallow rulings narrow and wide rulings readable.
 
+🖍 **Six-color highlighter**
+Select any judgment text and a floating toolbar appears above the selection with six color swatches (yellow / red / orange / green / blue / purple) plus an "erase" button that removes overlapping marks. Coloring uses the CSS Highlight API (one Highlight per color registered as `::highlight(fint-hl-<color>)`), so there's zero DOM mutation and no conflict with the outline anchors or inline citation highlight; multiple colors can overlap on the same passage. A dedicated **Highlighter** tab joins the Outline and Citations tabs in the sidebar, listing every marked passage in full (not truncated); click to scroll back with a transient yellow flash, or use the × button to remove a single entry. A drag handle on each row lets you reorder freely across colors, and the order is persisted. Passages are serialized as text fingerprints (`text` + 30-char `prefix`/`suffix` context) into `chrome.storage.session` keyed by `fint-hl:<hostname>:<判決 id>`, so reloads, iframe navigations within the same session, and direct-open `data.aspx?id=...` URLs (e.g. from clipboard cards) all restore the same marks. The options page offers an **Enable highlighter** master toggle and a six-color checklist controlling which swatches appear.
+
 ✂️ **Smart copy**
 Select any judgment text and copy it — line breaks and padding whitespace between CJK characters are stripped automatically, and the citation suffix `（<case-number>意旨參照）` is appended. Spaces between ASCII alphanumerics (like "NT 300") are preserved. The citation suffix can be toggled off from either the options page or the side panel header. A secondary shortcut **Cmd+X / Ctrl+X** also writes the normalized (and optionally citation-suffixed) text to the clipboard but skips the clipboard-card store, for one-off pastes that shouldn't accumulate in the card list.
 
@@ -164,8 +180,10 @@ Each card shows the source tag (裁判書 / 判解函釋 / 內網判解函釋 / 
 
 ⚙️ **Options page**
   • Toggle "append citation on copy" (default: on) — also exposed at the top of the clipboard side panel as an inline switch; both endpoints share the same setting and propagate changes instantly
-
-  • Per-site sidebar position (left / right) for FINT, FJUD, intranet FINT, and intranet FJUD
+  • Toggle **"Enable Citations"** (default: on); when off, the Citations tab and inline citation highlight are skipped entirely
+  • Toggle **"Enable Highlighter"** (default: on); when off, the floating toolbar and the Highlighter tab are disabled, but previously saved marks remain and reappear when re-enabled
+  • **"Highlighter colors"** six-way checklist; unselected colors are omitted from the toolbar (selecting none falls back to the full six)
+  • Per-site sidebar position (left / right) for FINT, FJUD, intranet FINT, and intranet FJUD — the Outline, Citations, and Highlighter tabs all follow the same per-site placement
   • "Expand depth" slider 1–6 (default 3): controls how deep the outline auto-expands
   • All changes apply instantly to open tabs; user settings sync across devices via your Chrome account
 
@@ -186,6 +204,14 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **Who is it for**
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
+
+🆕 **v0.2.7 changes**
+  • New **six-color highlighter**: floating toolbar above the selection offers six colors (yellow / red / orange / green / blue / purple) and an "erase" button that removes overlapping marks. Uses the CSS Highlight API (one Highlight per color), so there is zero DOM mutation and no conflict with existing anchors or citation highlights; same passage can be layered in multiple colors
+  • **Highlighter sidebar tab**: joins the Outline and Citations tabs; displays every marked passage in full (not truncated); click to scroll back with a transient yellow flash, × to remove a single entry
+  • **Drag-to-reorder**: each row in the Highlighter tab has a drag handle; reorder freely across colors and the order is persisted
+  • **Session-scoped persistence**: passages are serialized as text fingerprints (`text` + 30-char `prefix`/`suffix` context) into `chrome.storage.session` keyed by `fint-hl:<hostname>:<judgment id>`, so reloads, iframe navigations within the same session, and direct-open `data.aspx?id=...` URLs (e.g. from clipboard cards) all restore the same marks
+  • **Three new options**: "Enable highlighter" master toggle; six-color checklist controlling toolbar swatches (selecting none falls back to full six); the options page is regrouped as Copy / Citations / Highlighter / Sidebar position / Expand depth; the former "Show Citations tab" is renamed to "Enable Citations"
+  • **Outline tab skipped when no hierarchy detected**: rulings with no numeral hierarchy (simple rulings, prose-only interpretations) omit the Outline tab entirely to keep the sidebar minimal
 
 🆕 **v0.2.6 changes**
   • New **"Citations" sidebar tab**: extracts every authoritative opinion citation in the ruling (Supreme Court judgments/rulings, Supreme Court Grand Chamber rulings, Supreme Court civil/criminal chamber resolutions, inter-court symposium resolutions, Grand Justices' interpretations, Constitutional Court judgments, Supreme Administrative Court judgments/rulings, and Supreme Administrative Court presiding-justice joint conference resolutions — eight categories in total), with per-entry jump and transient highlight
