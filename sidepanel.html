@@ -18,13 +18,47 @@
             .md
           </button>
           <button id="sp-clear" class="sp-btn sp-btn-ghost" type="button">全部清空</button>
+          <span
+            class="sp-cite-label"
+            title="複製時自動在尾端附上「（XX意旨參照）」"
+          >附上字號</span>
+          <div
+            class="sp-cite-group"
+            role="radiogroup"
+            aria-label="複製時自動附上裁判字號"
+          >
+            <label>
+              <input type="radio" name="sp-citation" value="on" />開
+            </label>
+            <label>
+              <input type="radio" name="sp-citation" value="off" />關
+            </label>
+          </div>
         </div>
       </div>
       <p class="sp-subtitle">
         僅保留本次瀏覽器開啟期間複製的裁判文字，關閉瀏覽器後自動清空。
       </p>
-      <div class="sp-header-tools">
-        <span class="sp-fs-label">字體大小</span>
+      <div class="sp-search-wrap">
+        <div
+          class="sp-view-group"
+          role="radiogroup"
+          aria-label="切換顯示類型"
+        >
+          <label>
+            <input type="radio" name="sp-view" value="clipboard" />一般
+          </label>
+          <label>
+            <input type="radio" name="sp-view" value="highlights" />螢光筆
+          </label>
+        </div>
+        <input
+          id="sp-search"
+          class="sp-search-input"
+          type="search"
+          placeholder="搜尋內文、字號、備註或 #標籤…"
+          autocomplete="off"
+        />
         <div class="sp-fs-group" role="group" aria-label="字體大小調整">
           <button
             id="sp-fs-minus"
@@ -45,34 +79,10 @@
             A+
           </button>
         </div>
-        <span
-          class="sp-cite-label"
-          title="複製時自動在尾端附上「（XX意旨參照）」"
-        >附上字號</span>
-        <div
-          class="sp-cite-group"
-          role="radiogroup"
-          aria-label="複製時自動附上裁判字號"
-        >
-          <label>
-            <input type="radio" name="sp-citation" value="on" />開
-          </label>
-          <label>
-            <input type="radio" name="sp-citation" value="off" />關
-          </label>
-        </div>
-      </div>
-      <div class="sp-search-wrap">
-        <input
-          id="sp-search"
-          class="sp-search-input"
-          type="search"
-          placeholder="搜尋內文、字號、備註或 #標籤…"
-          autocomplete="off"
-        />
       </div>
     </header>
     <div id="sp-tag-cloud" class="sp-tag-cloud"></div>
+    <div id="sp-color-cloud" class="sp-color-cloud"></div>
     <div id="sp-search-status" class="sp-search-status"></div>
     <main id="sp-list" class="sp-list" aria-live="polite"></main>
     <div id="sp-empty" class="sp-empty" hidden>

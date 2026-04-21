@@ -72,6 +72,17 @@ https://github.com/han0302-cyber/judicial-outline-extension
 **適合誰**
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
 
+🆕 **v0.2.8 更新**
+  • **判決剪貼簿新增「一般／螢光筆」檢視切換**：標題列下方新增切換按鈕，切至「螢光筆」即將本 session 內所有判決標註過之螢光段落彙整為卡片清單，逐卡附色點、案號（可點擊開新分頁至原文）與完整文字，支援「複製」與「前往」兩項動作；前往流程與剪貼簿一致，優先切回已開判決分頁，否則新開分頁後自動捲動定位
+  • **跨判決螢光筆彙整儲存**：底層新增全域聚合鍵 `allHighlights`（`chrome.storage.session`），每次塗色／擦除／拖曳皆以當前判決 `hlKey` slice 整塊同步寫入，保留其他判決原相對順序，不因編輯單一判決而造成列表閃動
+  • **螢光筆檢視支援匯出 `.txt` / `.md`**：依判決分區彙整，逐卡註記色點；Markdown 版本另將每段以 blockquote 呈現，便於貼入 Obsidian／Word／Google Docs
+  • **螢光筆卡片支援拖曳調整順序**：為維持全域聚合鍵之 slice 連續性，僅允許於同一判決卡片內重排；拖曳後同步回寫該判決之 `fint-hl:*` 儲存鍵，回到判決頁面後側欄耳標順序一致
+  • **螢光筆色彩快速篩選**：搜尋列下方顯示色彩膠囊列，逐色附件數；單擊即篩出該色卡片，再擊取消；與搜尋字串可同時生效
+  • **螢光筆卡片支援逐卡刪除與「全部清空」**：每張螢光筆卡片右下提供「刪除」鈕（附確認對話框），可獨立移除單段標記；標題列「全部清空」於螢光筆檢視下改為一次移除全域聚合鍵與所有 `fint-hl:*` 儲存鍵；已開啟的判決頁面由 content.js 的 `storage.onChanged` 自動同步刷新
+  • **切換時自動清空搜尋與篩選**：避免前一模式之搜尋條件與 `#標籤` 篩選殘留造成誤判
+  • **螢光筆卡片文字正規化**：跨判決呈現時比照純文字複製（不附字號）流程清理段落間換行與多餘空白，複製與匯出亦採清理後版本；儲存層保留原貌，不影響「前往原文」之文字搜尋定位
+  • **側邊欄標題列版面重整**：「附上字號 開／關」切換移至「全部清空」右側；「一般／螢光筆」切換、搜尋輸入框與「A−／A+」字體大小按鈕整併為同一列，中央搜尋框自動填滿寬度
+
 🆕 **v0.2.7 更新**
   • 新增**六色螢光筆**：選取判決正文後浮出工具列，點擊六色（黃／紅／橘／綠／藍／紫）色塊即上色，另附「清除」鈕抹除重疊之既有標記；採 CSS Highlight API 上色，零 DOM 變動，不與既有階層耳標及引文長駐高亮衝突
   • **螢光筆耳標**：側邊欄增設與「判決架構／參照」並列之獨立耳標，完整呈現每段螢光全文（非摘要），點擊即捲回原文並以黃色暫態高亮；右側「×」鈕即時移除單段
@@ -204,6 +215,17 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **Who is it for**
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
+
+🆕 **v0.2.8 changes**
+  • **Clipboard panel now offers a "Regular / Highlighter" view toggle**: switching to Highlighter aggregates every highlighted passage from all judgments touched in the current session into a unified card list. Each card carries a color swatch, case label (click opens the original ruling in a new tab), and full passage text; both "Copy" and "Go to" actions are supported — Go to prefers an already-open judgment tab and otherwise opens a new tab and auto-scrolls to the passage
+  • **Global highlight aggregation store**: new `allHighlights` key in `chrome.storage.session`; each highlight edit (apply / erase / drag-reorder) rewrites the current judgment's slice as a whole keyed by `hlKey`, preserving the relative order of other judgments so editing one doesn't shuffle the list
+  • **Highlighter view supports .txt / .md export**: grouped by judgment with per-entry color annotation; the Markdown variant renders each passage as a blockquote for easy paste into Obsidian / Word / Google Docs
+  • **Drag-to-reorder for highlighter cards**: confined to within the same judgment's slice to preserve the aggregate's slice-contiguity invariant; the new order is mirrored back to that judgment's per-judgment store so the sidebar tab and page-reload order stay consistent
+  • **Color quick-filter**: a color-pill row beneath the search bar (one pill per color in use, with counts); click to filter the card list to that color, click again to clear; stacks with the text search so you can narrow by color and keyword simultaneously
+  • **Per-entry delete and Clear-all for highlighter cards**: every highlighter card carries a Delete button (with a confirmation dialog) to remove a single passage; under the Highlighter view, the header's "Clear all" removes the global aggregate key plus every per-judgment `fint-hl:*` key in one pass; open judgment tabs auto-refresh via the content.js `storage.onChanged` listener so page highlights and sidebar tab state clear immediately
+  • **Toggling views clears search and tag filters**: prevents stale query/`#tag` state from carrying into the other mode (export and clear buttons remain available in both modes, each acting on the active dataset)
+  • **Highlighter text normalization**: aggregated highlighter cards now normalize line wraps and excess whitespace on display, copy and export (matching the plain-text copy path without the citation suffix); the underlying storage keeps the original `range.toString()` so "Go to source" text-search positioning is unaffected
+  • **Header layout refresh**: the "append citation" toggle moves to the right of the "Clear all" button; the "Regular / Highlighter" view switch, the search input and the "A−／A+" font-size buttons are consolidated into a single row, with the search input stretching to fill the available width
 
 🆕 **v0.2.7 changes**
   • New **six-color highlighter**: floating toolbar above the selection offers six colors (yellow / red / orange / green / blue / purple) and an "erase" button that removes overlapping marks. Uses the CSS Highlight API (one Highlight per color), so there is zero DOM mutation and no conflict with existing anchors or citation highlights; same passage can be layered in multiple colors

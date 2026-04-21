@@ -115,6 +115,19 @@
   })
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
+      // 監聽 session 區：側邊欄於螢光筆卡片拖曳後，會回寫當前判決之
+      // fint-hl:<key>；本頁需同步刷新 highlightEntries，否則：
+      //   (a) 頁面側欄耳標順序與側邊欄不同步
+      //   (b) 下次編輯時 saveHighlightsToStorage 會以舊序覆寫回儲存
+      if (area === 'session') {
+        try {
+          const currentKey = hlStorageKey()
+          if (currentKey && changes[currentKey]) {
+            loadHighlightsFromStorage()
+          }
+        } catch (_) {}
+        return
+      }
       if (area !== 'sync') return
       let needsRerender = false
       if (changes.positions) {
@@ -2628,6 +2641,11 @@
   // 比對；皆失敗則略過該段（不拋例外，以免中斷整體還原）。
   const HL_STORAGE_KEY_PREFIX = 'fint-hl:'
   const HL_CTX_CHARS = 30
+  // 全域聚合鍵：於 storage.session 中以單一陣列彙整所有判決之螢光段落，
+  // 供側邊欄「螢光筆」檢視跨判決瀏覽歷次標記。每次寫入以當前判決之
+  // hlKey 作為 slice 識別、整塊替換；各判決原有的 fint-hl:* 鍵仍為 CSS
+  // Highlight 重建之權威來源，本鍵僅為衍生索引，不影響單篇還原邏輯。
+  const HL_ALL_KEY = 'allHighlights'
 
   // 取得當前判決之持久化 key。
   //
@@ -2706,7 +2724,69 @@
       if (!key) return
       const entries = snapshotAllHighlights()
       chrome.storage.session.set({ [key]: entries }).catch(() => {})
+      // 同步更新全域聚合鍵，供側邊欄跨判決檢視；錯誤不阻塞當前判決寫入。
+      syncAllHighlightsForCurrentJudgment(entries).catch(() => {})
     } catch (_) {}
+  }
+
+  // 以當前判決之 hlKey 為界，將該判決的螢光段落 slice 整塊替換進全域清單。
+  //   - 若該 hlKey 已在清單中：於首次出現位置插入新 slice、移除其餘舊項，
+  //     保留其他判決之相對順序（避免每次編輯均將自身置於首位造成跳動）。
+  //   - 若該 hlKey 尚未出現：將 slice 置於清單前端（最近編輯之判決優先）。
+  // 參數 entries 為 snapshotAllHighlights() 的輸出（Array<{ color, text,
+  // prefix, suffix }>），此函式補上判決級欄位（caseLabel／sourceUrl／
+  // pageUrl／source／hlKey）後寫回全域鍵。
+  function syncAllHighlightsForCurrentJudgment(entries) {
+    try {
+      if (!chrome || !chrome.storage || !chrome.storage.session) return Promise.resolve()
+      const hlKey = hlStorageKey()
+      if (!hlKey) return Promise.resolve()
+      const { url, pageUrl, source } = resolveSource()
+      const caseLabel = getCaseLabel() || ''
+      const now = Date.now()
+      const slice = (entries || []).map((s, idx) => ({
+        id: `hl-${hlKey}-${idx}`,
+        color: s.color,
+        text: s.text,
+        prefix: s.prefix || '',
+        suffix: s.suffix || '',
+        caseLabel,
+        sourceUrl: url || '',
+        pageUrl: pageUrl || '',
+        source,
+        hlKey,
+        order: idx,
+        createdAt: now,
+      }))
+      return chrome.storage.session
+        .get({ [HL_ALL_KEY]: [] })
+        .then(({ [HL_ALL_KEY]: list }) => {
+          const arr = Array.isArray(list) ? list : []
+          const hasExisting = arr.some((e) => e && e.hlKey === hlKey)
+          let next
+          if (!hasExisting) {
+            next = [...slice, ...arr]
+          } else {
+            next = []
+            let inserted = false
+            for (const e of arr) {
+              if (e && e.hlKey === hlKey) {
+                if (!inserted) {
+                  next.push(...slice)
+                  inserted = true
+                }
+                // 同 hlKey 之其餘舊項直接跳過
+              } else {
+                next.push(e)
+              }
+            }
+          }
+          return chrome.storage.session.set({ [HL_ALL_KEY]: next })
+        })
+        .catch(() => {})
+    } catch (_) {
+      return Promise.resolve()
+    }
   }
 
   // 以 TreeWalker 扁平化 body 內所有 text node，回傳 fullText + 區間映射；

@@ -99,18 +99,14 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .sp-header-actions {
   display: flex;
-  gap: 6px;
-}
-
-.sp-header-tools {
-  display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .sp-fs-group {
@@ -120,6 +116,7 @@ body {
   border-radius: 5px;
   overflow: hidden;
   background: var(--surface);
+  flex-shrink: 0;
 }
 
 .sp-fs-btn {
@@ -155,17 +152,11 @@ body {
   font-weight: 600;
 }
 
-.sp-fs-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-right: 6px;
-}
-
 .sp-cite-label {
   font-size: 11px;
   color: var(--text-muted);
-  margin-left: auto;
-  margin-right: 6px;
+  margin-left: 6px;
+  margin-right: 4px;
   cursor: default;
 }
 
@@ -204,6 +195,78 @@ body {
   font-weight: 600;
 }
 
+/* ----- 一般／螢光筆 檢視切換（與搜尋列同列） ----- */
+.sp-view-group {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.sp-view-group label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sp-view-group input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sp-view-group label:has(input:checked) {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* ----- 螢光筆卡片 ----- */
+.sp-card.is-hl-card .sp-card-head {
+  align-items: center;
+}
+
+.sp-card.is-hl-card[draggable='true'] {
+  cursor: grab;
+}
+
+.sp-card.is-hl-card.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.sp-card-hl-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  flex-shrink: 0;
+}
+
+/* 色樣與 sidebar.css 的 ::highlight(fint-hl-*) 對齊，視覺與頁面實際塗色一致 */
+.sp-card-hl-swatch.sp-hl-yellow { background: rgba(255, 236, 88, 0.85); }
+.sp-card-hl-swatch.sp-hl-red    { background: rgba(248, 113, 113, 0.85); }
+.sp-card-hl-swatch.sp-hl-orange { background: rgba(251, 146, 60, 0.85); }
+.sp-card-hl-swatch.sp-hl-green  { background: rgba(74, 222, 128, 0.85); }
+.sp-card-hl-swatch.sp-hl-blue   { background: rgba(96, 165, 250, 0.85); }
+.sp-card-hl-swatch.sp-hl-purple { background: rgba(192, 132, 252, 0.85); }
+
+@media (prefers-color-scheme: dark) {
+  .sp-card-hl-swatch { border-color: rgba(255, 255, 255, 0.22); }
+}
+
 .sp-title {
   margin: 0;
   font-size: 15px;
@@ -218,13 +281,17 @@ body {
   line-height: 1.5;
 }
 
-/* ----- Search bar ----- */
+/* ----- Search bar（含「一般／螢光筆」切換於左側） ----- */
 .sp-search-wrap {
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .sp-search-input {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -694,6 +761,54 @@ a.sp-card-label:hover {
   margin-right: 4px;
   flex-shrink: 0;
 }
+
+/* ----- 螢光筆色彩快速篩選（下於搜尋列） -----
+ * 視覺與頁面反白時浮出之螢光筆工具列之圓點對齊（sidebar.css 的
+ * .fint-hl-swatch），僅以顏色區別，滑鼠移入方顯示計數與色名。 */
+.sp-color-cloud {
+  padding: 8px 16px 0;
+  display: none;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.sp-color-cloud.is-visible {
+  display: flex;
+}
+
+.sp-color-swatch {
+  all: unset;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-sizing: border-box;
+  border: 2px solid transparent;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sp-color-swatch:hover {
+  transform: scale(1.18);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.sp-color-swatch:active {
+  transform: scale(1.05);
+}
+
+.sp-color-swatch.is-active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text);
+}
+
+/* 色系與螢光筆工具列完全一致（sidebar.css 定義） */
+.sp-color-swatch.sp-hl-yellow { background: #fde047; }
+.sp-color-swatch.sp-hl-red    { background: #f87171; }
+.sp-color-swatch.sp-hl-orange { background: #fb923c; }
+.sp-color-swatch.sp-hl-green  { background: #4ade80; }
+.sp-color-swatch.sp-hl-blue   { background: #60a5fa; }
+.sp-color-swatch.sp-hl-purple { background: #c084fc; }
 
 /* ----- Search match count ----- */
 .sp-search-status {
