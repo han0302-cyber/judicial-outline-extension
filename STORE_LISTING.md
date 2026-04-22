@@ -72,6 +72,9 @@ https://github.com/han0302-cyber/judicial-outline-extension
 **適合誰**
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
 
+🆕 **v0.2.9 更新**
+  • **判決架構耳標行首判準統一**：項目符號一律以「位於段落開頭」為認列原則；正文行中引用法條之列項（如「事項表明之：一、⋯。二、⋯」「支出限於：㈠⋯、㈡⋯」）及卷宗冊次編號（如「前審卷㈠第69頁」）不再被誤認為判決架構層級
+
 🆕 **v0.2.8 更新**
   • **判決剪貼簿新增「一般／螢光筆」檢視切換**：標題列下方新增切換按鈕，切至「螢光筆」即將本 session 內所有判決標註過之螢光段落彙整為卡片清單，逐卡附色點、案號（可點擊開新分頁至原文）與完整文字，支援「複製」與「前往」兩項動作；前往流程與剪貼簿一致，優先切回已開判決分頁，否則新開分頁後自動捲動定位
   • **跨判決螢光筆彙整儲存**：底層新增全域聚合鍵 `allHighlights`（`chrome.storage.session`），每次塗色／擦除／拖曳皆以當前判決 `hlKey` slice 整塊同步寫入，保留其他判決原相對順序，不因編輯單一判決而造成列表閃動
@@ -215,6 +218,9 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **Who is it for**
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
+
+🆕 **v0.2.9 changes**
+  • **Outline detection: unified physical line-start rule**: enumeration markers (壹 / 一 / ㈠ / (一) / 1. / ⒈ / (1) / ⑴ / ① and related forms) are only accepted at physical line starts. Inline statute lists (e.g. 「事項表明之：一、⋯。二、⋯」「支出限於：㈠⋯、㈡⋯」) and case-volume ordinals (e.g. 「前審卷㈠第69頁」) are no longer mis-classified as outline bookmarks
 
 🆕 **v0.2.8 changes**
   • **Clipboard panel now offers a "Regular / Highlighter" view toggle**: switching to Highlighter aggregates every highlighted passage from all judgments touched in the current session into a unified card list. Each card carries a color swatch, case label (click opens the original ruling in a new tab), and full passage text; both "Copy" and "Go to" actions are supported — Go to prefers an already-open judgment tab and otherwise opens a new tab and auto-scrolls to the passage

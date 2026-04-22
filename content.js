@@ -447,9 +447,11 @@
       rawHits.push({ pos, level, forcedLabel })
     }
 
-    // Pass A: line-start-ish candidates. 候選位置 = 0 與任何 START_CONTEXT_RE
-    // 字元之後的下一個非空白位置。此設計可涵蓋「。八、……」這類同段內
-    // 以句號分界的編號，不僅限於物理 \n 之後。
+    // Pass A：以句讀之後之位置蒐集潛在候選。候選包含正文起點，以及
+    // 任何 START_CONTEXT_RE 字元（句號、冒號、分號、問號、驚嘆號、換
+    // 行字元）之後的下一個非空白位置。章段標題（主文／事實／理由）
+    // 得以行內比對即接受；階層編號另須通過下方「位於物理行首」之檢
+    // 查始登錄為書籤錨點。
     const startCandidates = []
     if (full.length > 0) startCandidates.push(0)
     for (let i = 1; i < full.length; i++) {
@@ -519,18 +521,44 @@
       const head = full.slice(realPos, realPos + 24)
       const level = detectLevel(head)
       if (level === null || level > 5) continue
+      // 段落項目符號須位於物理行首：向前跨越水平空白（空格、定位字元、
+      // 全形空白）後應撞到換行字元或正文起點，始認列為判決架構層級。
+      // 用以排除正文行中引用法條之列項誤判，例如：
+      //   「⋯應以細部計畫書及細部計畫圖就左列事項表明之：一、計畫地
+      //    區範圍。二、居住密度及容納人口。三、土地使用分區管制⋯」
+      //   「⋯支出限於：㈠人事費用支出、㈡業務費用支出、㈢公共關係費
+      //    用支出、㈣選務費用支出⋯」
+      // 此限制與附表章段、Pass B 圈入編號之行首判準一致，使「項目符
+      // 號位於段落開頭」成為全局統一原則；行內以句號或冒號分隔之列
+      // 項一律視為前一層級內文，不另立書籤。
+      {
+        let back = realPos - 1
+        while (back >= 0 && /[ \t　]/.test(full.charAt(back))) back--
+        if (back >= 0 && full.charAt(back) !== '\n') continue
+      }
       pushRaw(realPos, level)
     }
 
-    // Pass B: 任意位置的 enclosed numeral 都可以安全當錨點，因為單一字元本身
-    // 就是明確的編號 marker，不會跟正文衝突。涵蓋四組：
-    //   ㈠-㈩  U+3220-3229  → level 2
-    //   ⒈-⒛  U+2488-249B  → level 3（帶句點的阿拉伯數字）
-    //   ⑴-⒇  U+2474-2487  → level 4（括號內阿拉伯數字）
-    //   ①-⑳  U+2460-2473  → level 5（圓圈阿拉伯數字）
-    // 同樣受引號深度過濾，避免引用條文中的 ⑴ 被誤抓。
+    // Pass B：圈入編號補強掃描。原設計允許任意位置皆登錄為錨點，實
+    // 務上於「前審卷㈠第69頁」「原審卷㈡第12頁」等卷宗冊次編號處產
+    // 生誤判（㈠／㈡ 並非段落項目符號，僅為卷宗冊次），故同樣限制
+    // 須位於段落起點：前一個非水平空白字元為換行字元，或本身即為
+    // 正文起始位置。與 Pass A 之段落起點判準一致，使項目符號判讀以
+    // 段落開頭為原則，排除正文中段出現之同形字元。涵蓋四組：
+    //   ㈠－㈩  U+3220－U+3229  → 層級 2
+    //   ⒈－⒛  U+2488－U+249B  → 層級 3（帶句點之阿拉伯數字）
+    //   ⑴－⒇  U+2474－U+2487  → 層級 4（括號內阿拉伯數字）
+    //   ①－⑳  U+2460－U+2473  → 層級 5（圓圈阿拉伯數字）
+    // 同受引號區段過濾，避免引用條文中之 ⑴ 被誤抓。
+    const isParagraphStart = (pos) => {
+      if (pos === 0) return true
+      let k = pos - 1
+      while (k >= 0 && /[ \t　]/.test(full.charAt(k))) k--
+      return k < 0 || full.charAt(k) === '\n'
+    }
     for (let i = 0; i < full.length; i++) {
       if (insideQuote[i]) continue
+      if (!isParagraphStart(i)) continue
       const cp = full.charCodeAt(i)
       if (cp >= 0x3220 && cp <= 0x3229) pushRaw(i, 2)
       else if (cp >= 0x2488 && cp <= 0x249b) pushRaw(i, 3)
