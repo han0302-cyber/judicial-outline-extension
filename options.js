@@ -22,6 +22,7 @@ function loadSettings() {
       showCitations: true,
       enableHighlighter: true,
       highlighterColors: HL_COLOR_KEYS,
+      enableDownload: true,
     },
     (result) => {
       const positions = Object.assign({}, DEFAULTS, result.positions || {})
@@ -47,6 +48,11 @@ function loadSettings() {
         'input[name="enableHighlighter"][value="' + enableHl + '"]',
       )
       if (ehInput) ehInput.checked = true
+      const enableDl = result.enableDownload === false ? 'off' : 'on'
+      const edInput = document.querySelector(
+        'input[name="enableDownload"][value="' + enableDl + '"]',
+      )
+      if (edInput) edInput.checked = true
       const hlColors = Array.isArray(result.highlighterColors)
         ? result.highlighterColors
         : HL_COLOR_KEYS
@@ -81,6 +87,10 @@ function saveSettings() {
     'input[name="enableHighlighter"]:checked',
   )
   const enableHighlighter = ehChecked ? ehChecked.value === 'on' : true
+  const edChecked = document.querySelector(
+    'input[name="enableDownload"]:checked',
+  )
+  const enableDownload = edChecked ? edChecked.value === 'on' : true
   const highlighterColors = []
   HL_COLOR_KEYS.forEach((key) => {
     const box = document.querySelector(
@@ -98,6 +108,7 @@ function saveSettings() {
       showCitations,
       enableHighlighter,
       highlighterColors,
+      enableDownload,
     },
     () => {
       const status = document.getElementById('status')

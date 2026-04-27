@@ -81,17 +81,95 @@
   user-select: none;
 }
 
-/* 「參照」耳標視覺上與「判決架構」同色系但略短，避免兩者長度一致時視覺過重；
-   仍維持相同字級、對比與陰影。 */
+/* 「參照」「螢光筆」「下載」三個次要耳標共用相同高度（80px），與「判決
+ * 架構」（128px）形成主要、次要兩階層次。兩字耳標（參照、下載）以較寬
+ * 之字距撐起與三字耳標（螢光筆）視覺等高之觀感。 */
 #fint-outline-sidebar .fint-citations-tab {
-  height: 96px;
-  letter-spacing: 0.32em;
+  height: 80px;
+  letter-spacing: 0.5em;
 }
 
-/* 「螢光筆」耳標採更短高度，與既有耳標形成階梯式層次；文字三字留較緊字距。 */
 #fint-outline-sidebar .fint-highlights-tab {
   height: 80px;
   letter-spacing: 0.28em;
+}
+
+#fint-outline-sidebar .fint-download-tab {
+  height: 80px;
+  letter-spacing: 0.5em;
+}
+
+/* 下載卡片寬度略窄：兩枚按鈕直排即足，無需比照參照卡片之 440px。下載
+ * 耳標位處側邊欄底部第四格，最大高度須扣除前三耳標高度與間距：
+ *   側邊欄起點 96px + 三耳標（128+80+80＝288px）+ 三間距 30px ≈ 414px。 */
+#fint-outline-sidebar .fint-download-card {
+  width: 280px;
+  max-height: calc(100vh - 440px);
+}
+
+/* 「一併匯出螢光筆」勾選列：與按鈕區之間保留 10px 間距，淺色虛線膠囊。
+ * 勾選方塊保留原生外觀，並加大點擊範圍。 */
+#fint-outline-sidebar .fint-download-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--fint-border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1.4;
+}
+
+#fint-outline-sidebar .fint-download-opt:hover {
+  background: var(--fint-primary-soft);
+  border-color: var(--fint-primary);
+  color: var(--fint-primary-dark);
+}
+
+#fint-outline-sidebar .fint-download-opt-cb {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  accent-color: var(--fint-primary);
+  cursor: pointer;
+}
+
+#fint-outline-sidebar .fint-download-btn-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#fint-outline-sidebar .fint-download-btn {
+  all: unset;
+  display: block;
+  text-align: center;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--fint-primary-dark);
+  padding: 10px 14px;
+  border: 1.5px solid var(--fint-border);
+  border-radius: 10px;
+  background: #ffffff;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+#fint-outline-sidebar .fint-download-btn:hover {
+  background: var(--fint-primary-soft);
+  border-color: var(--fint-primary);
+  color: var(--fint-primary-dark);
+}
+
+#fint-outline-sidebar .fint-download-btn:active {
+  background: var(--fint-primary);
+  color: #ffffff;
 }
 
 #fint-outline-sidebar .fint-outline-card {

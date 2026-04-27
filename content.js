@@ -64,6 +64,9 @@
   const HL_COLOR_KEYS = ['yellow', 'red', 'orange', 'green', 'blue', 'purple']
   let userEnableHighlighter = true
   let userHighlighterColors = HL_COLOR_KEYS.slice()
+  // 下載全文耳標：關閉時側邊欄不渲染「下載」耳標；既有功能不受影響。
+  // 預設開啟，提供 .txt／.md 兩種格式之全文匯出。
+  let userEnableDownload = true
 
   function normalizeHighlighterColors(arr) {
     if (!Array.isArray(arr)) return HL_COLOR_KEYS.slice()
@@ -84,6 +87,7 @@
           showCitations: true,
           enableHighlighter: true,
           highlighterColors: userHighlighterColors,
+          enableDownload: true,
         },
         (result) => {
           if (result && result.positions) {
@@ -105,6 +109,9 @@
             userHighlighterColors = normalizeHighlighterColors(
               result.highlighterColors,
             )
+          }
+          if (result && typeof result.enableDownload === 'boolean') {
+            userEnableDownload = result.enableDownload
           }
           resolve()
         },
@@ -181,6 +188,10 @@
           if (hlToolbarEl && hlToolbarEl.isConnected) hlToolbarEl.remove()
           hlToolbarEl = null
         } catch (_) {}
+      }
+      if (changes.enableDownload) {
+        userEnableDownload = changes.enableDownload.newValue !== false
+        needsRerender = true
       }
       if (needsRerender) {
         sidebarBuilt = false
@@ -1594,6 +1605,71 @@
       aside.appendChild(citesGroup)
     }
 
+    // ----- 耳標四：下載全文 -----
+    // 提供 .txt（純文字）與 .md（含 YAML 前言區塊，可直接拖入 Obsidian）兩
+    // 種格式，內容包含後設資料標頭與判決正文。設定頁可關閉本耳標。
+    if (userEnableDownload) {
+      const dlGroup = hostDoc.createElement('div')
+      dlGroup.className = 'fint-tab-group'
+      dlGroup.dataset.group = 'download'
+
+      const dlTab = hostDoc.createElement('div')
+      dlTab.className = 'fint-outline-tab fint-download-tab'
+      dlTab.textContent = '下載'
+      dlGroup.appendChild(dlTab)
+
+      const dlCard = hostDoc.createElement('div')
+      dlCard.className = 'fint-outline-card fint-download-card'
+
+      const dlHead = hostDoc.createElement('div')
+      dlHead.className = 'fint-outline-head'
+      dlHead.textContent = '下載判決全文'
+      dlCard.appendChild(dlHead)
+
+      // 「一併匯出螢光筆」勾選：僅作用於 .md 下載；勾選時將本判決所有
+      // 螢光筆段落以 <mark style="background:..."> 包入，於 Obsidian
+      // 閱讀模式呈現對應顏色。.txt 下載不受此選項影響。
+      const hlOptLabel = hostDoc.createElement('label')
+      hlOptLabel.className = 'fint-download-opt'
+      const hlOptInput = hostDoc.createElement('input')
+      hlOptInput.type = 'checkbox'
+      hlOptInput.className = 'fint-download-opt-cb'
+      hlOptLabel.appendChild(hlOptInput)
+      const hlOptText = hostDoc.createElement('span')
+      hlOptText.textContent = '一併匯出螢光筆（僅 .md）'
+      hlOptLabel.appendChild(hlOptText)
+      hlOptLabel.title =
+        '勾選後 .md 中之螢光筆段落以 <mark> 標籤包裹，Obsidian Reading View 可呈現對應顏色'
+      dlCard.appendChild(hlOptLabel)
+
+      const dlBtnRow = hostDoc.createElement('div')
+      dlBtnRow.className = 'fint-download-btn-row'
+
+      const txtBtn = hostDoc.createElement('button')
+      txtBtn.type = 'button'
+      txtBtn.className = 'fint-download-btn'
+      txtBtn.textContent = '.txt 純文字'
+      txtBtn.title = '以純文字檔下載判決全文'
+      txtBtn.addEventListener('click', () => downloadJudgmentAs('txt'))
+
+      const mdBtn = hostDoc.createElement('button')
+      mdBtn.type = 'button'
+      mdBtn.className = 'fint-download-btn'
+      mdBtn.textContent = '.md Markdown'
+      mdBtn.title =
+        '以 Markdown 下載（含 YAML frontmatter 與 H2-H3 大綱標題，可直接拖入 Obsidian）'
+      mdBtn.addEventListener('click', () =>
+        downloadJudgmentAs('md', !!hlOptInput.checked),
+      )
+
+      dlBtnRow.appendChild(txtBtn)
+      dlBtnRow.appendChild(mdBtn)
+      dlCard.appendChild(dlBtnRow)
+
+      dlGroup.appendChild(dlCard)
+      aside.appendChild(dlGroup)
+    }
+
     hostDoc.body.appendChild(aside)
 
     // 註冊持續性高亮：將所有 citeRange 打包為單一 Highlight，註冊於正文所在
@@ -1665,6 +1741,607 @@
     const m = text.match(/裁判字號\s*[:：]?\s*([^\n\r]+)/)
     if (!m) return ''
     return trimCaseLabel(m[1])
+  }
+
+  // ----- 後設資料擷取（供全文下載使用） -----
+  //
+  // 抽取四個常見後設欄位：裁判字號、裁判日期、裁判案由、相關法條。
+  // 兩種版面結構：
+  //   FJUD data.aspx：<dt>欄位</dt><dd>值</dd>
+  //   FINT data.aspx 與部分 FJUD：.row > .col-th + .col-td
+  // 兩處之 td/dd 內均可能夾帶隱藏元素（如「量刑趨勢建議」「相關法條展開」
+  // 連結），故改以 innerText 替代 textContent，俾自動略除 display:none
+  // 區塊之雜訊文字。
+  const META_KEYS = ['裁判字號', '裁判日期', '裁判案由', '相關法條']
+
+  function normalizeMetaValue(raw) {
+    if (!raw) return ''
+    let v = raw.replace(/\u00A0/g, ' ').replace(/\u3000/g, ' ')
+    v = v.replace(/\s+/g, ' ').trim()
+    return v
+  }
+
+  function extractMetadata() {
+    const out = {}
+    const setIfNew = (key, raw) => {
+      if (out[key]) return
+      const v = normalizeMetaValue(raw)
+      if (!v) return
+      out[key] = key === '裁判字號' ? trimCaseLabel(v) : v
+    }
+    try {
+      document.querySelectorAll('dt').forEach((dt) => {
+        const text = (dt.innerText || dt.textContent || '').trim()
+        const m = text.match(/^(裁判字號|裁判日期|裁判案由|相關法條)/)
+        if (!m) return
+        const dd = dt.nextElementSibling
+        if (!dd || dd.tagName !== 'DD') return
+        setIfNew(m[1], dd.innerText || dd.textContent || '')
+      })
+    } catch (_) {}
+    try {
+      document.querySelectorAll('.row').forEach((row) => {
+        const th = row.querySelector('.col-th')
+        if (!th) return
+        const text = (th.innerText || th.textContent || '').trim()
+        const m = text.match(/^(裁判字號|裁判日期|裁判案由|相關法條)/)
+        if (!m) return
+        const td = row.querySelector('.col-td:not(.jud_content), .col-td')
+        if (!td) return
+        setIfNew(m[1], td.innerText || td.textContent || '')
+      })
+    } catch (_) {}
+    return out
+  }
+
+  // ----- 全文擷取（供下載使用） -----
+  //
+  // 共用核心：走訪正文 DOM，依判決架構標記與段落邊界產生內含 `\n\n`／
+  // `\n` 之原始字串，俾後續步驟區分「段落邊界」與「視覺折行」。
+  const DOWNLOAD_BLOCK_TAGS = /^(DIV|P|PRE|LI|UL|OL|TABLE|TR|TD|TH|H[1-6]|SECTION|ARTICLE|BLOCKQUOTE|HR)$/i
+  // 段落終結符：句號、驚嘆號、問號、分號、冒號（半形與全形並列）。冒號
+  // 之所以納入，係因法律文書「⋯如下：」「⋯主張：」恆為列項引導語，
+  // 後接內容應視為新段落而非續行。
+  const DOWNLOAD_TERMINATOR_RE = /[。！？；：?!;:]$/
+
+  // 判決架構標記哨符：起始字元、單一層級數字（0–5）、結束字元。
+  const LM_OPEN = 'L'
+  const LM_CLOSE = ''
+  const LM_RE = /^L(\d)(.*)$/
+
+  // 螢光筆標記哨符（僅 .md 路徑使用）：起始前綴、色名、分隔字元、段落
+  // 內容、結束字元。三個控制字元均落於 C1 控制區，不致與原始正文及
+  // Markdown 標記字元衝突。
+  const HL_OPEN_PFX = 'HL:'
+  const HL_OPEN_END = ''
+  const HL_CLOSE = ''
+
+  // 判定指定行內容是否為合法之判決架構標記。用以剔除 annotateAnchors 為
+  // 無編號「主文」段落自動補入之 level-1 合成項目——其文字為主文內文而
+  // 非「一、二、三」等列項，若任令其升為 H3，將致側欄層級紊亂。
+  function isValidOutlineMarker(level, text) {
+    if (!text) return false
+    switch (level) {
+      case 0:
+        return (
+          /^(?:[主事理][文實由]|事實及理由|附\s*表)/.test(text) ||
+          /^[壹貳參肆伍陸柒捌玖拾甲乙丙丁戊己庚辛壬癸]+\s*[、，。．,.]/.test(text)
+        )
+      case 1:
+        return /^[一二三四五六七八九十百千零〇]+\s*[、，。．,.]/.test(text)
+      case 2:
+        return /^(?:[㈠-㈩]|[（(]\s*[一二三四五六七八九十百零〇]+\s*[）)])/.test(text)
+      case 3:
+        return /^(?:[\d０-９]+\s*[、，。．,.]|[⒈-⒛])/.test(text)
+      case 4:
+        return /^(?:[（(]\s*[\d０-９]+\s*[）)]|[⑴-⒇])/.test(text)
+      case 5:
+        return /^[①-⑳]/.test(text)
+    }
+    return false
+  }
+
+  // 共用 DOM 走訪：依 items 之識別字─層級對照表，於行首之錨點 span 處
+  // 嵌入判決架構標記哨符；若指定螢光筆清單，並於命中之文字節點範圍內
+  // 包入螢光筆哨符。回傳串接後之原始字串（含換行字元與哨符）。
+  //
+  // 之所以以 `\n\n` 標示區塊邊界、以 `\n` 標示 `<br>` 與文字節點內之
+  // 換行，係因 FJUD 部分判決頁將每行硬斷於約三十字寬度（例如「⋯申請
+  // 在坐落\n南投縣⋯」），該換行純屬視覺折行而非段落邊界，後續軟斷行
+  // 合併步驟即據此區分決定是否合併。
+  function walkBodyForDownload(body, items, hlList) {
+    const idToLevel = new Map()
+    ;(items || []).forEach((it) => {
+      if (it && it.id && typeof it.level === 'number') {
+        idToLevel.set(it.id, it.level)
+      }
+    })
+    const hasMarkers = idToLevel.size > 0
+    const hasHl = (hlList || []).length > 0
+
+    let out = ''
+    const ensureNewline = () => {
+      if (out && !out.endsWith('\n')) out += '\n'
+    }
+    const ensureBlockBreak = () => {
+      if (out.length === 0) return
+      if (out.endsWith('\n\n')) return
+      if (out.endsWith('\n')) out += '\n'
+      else out += '\n\n'
+    }
+    const atLineStart = () => {
+      if (out.length === 0) return true
+      if (out.endsWith('\n')) return true
+      const lastNL = out.lastIndexOf('\n')
+      const tail = out.slice(lastNL + 1)
+      return !tail.trim()
+    }
+
+    const emitTextNode = (node) => {
+      const text = node.nodeValue || ''
+      if (!text) return
+      if (!hasHl) {
+        out += text
+        return
+      }
+      const colors = new Array(text.length).fill(null)
+      let touched = false
+      for (const hl of hlList) {
+        const inter = intersectRangeWithTextNode(hl.range, node)
+        if (!inter) continue
+        touched = true
+        for (let i = inter.start; i < inter.end; i++) {
+          if (colors[i] === null) colors[i] = hl.color
+        }
+      }
+      if (!touched) {
+        out += text
+        return
+      }
+      let segStart = 0
+      let segColor = colors[0]
+      for (let i = 1; i <= text.length; i++) {
+        const c = i < text.length ? colors[i] : '__END__'
+        if (c !== segColor) {
+          const slice = text.slice(segStart, i)
+          if (segColor) {
+            out += HL_OPEN_PFX + segColor + HL_OPEN_END + slice + HL_CLOSE
+          } else {
+            out += slice
+          }
+          segStart = i
+          segColor = c
+        }
+      }
+    }
+
+    const walk = (el) => {
+      for (const child of el.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          emitTextNode(child)
+          continue
+        }
+        if (child.nodeType !== Node.ELEMENT_NODE) continue
+        const tag = child.tagName
+        if (tag === 'SCRIPT' || tag === 'STYLE') continue
+        if (tag === 'BR') {
+          ensureNewline()
+          continue
+        }
+        if (
+          hasMarkers &&
+          tag === 'SPAN' &&
+          child.id &&
+          idToLevel.has(child.id)
+        ) {
+          const lvl = idToLevel.get(child.id)
+          if (atLineStart()) {
+            ensureNewline()
+            out += LM_OPEN + lvl + LM_CLOSE
+          }
+        }
+        if (DOWNLOAD_BLOCK_TAGS.test(tag)) {
+          ensureBlockBreak()
+          walk(child)
+          ensureBlockBreak()
+        } else {
+          walk(child)
+        }
+      }
+    }
+    walk(body)
+    return out
+  }
+
+  // 行內正規化、連續空行壓縮並移除首尾空行，回傳逐行陣列。
+  function normalizeDownloadLines(raw) {
+    const lines = raw.split('\n').map((line) => {
+      let l = line.replace(/\u00A0/g, ' ').replace(/\u3000/g, ' ')
+      l = l.replace(/[ \t]+/g, ' ').trim()
+      l = l.replace(/ /g, (m, off, full) => {
+        const prev = full.charAt(off - 1)
+        const next = full.charAt(off + 1)
+        const isAlnum = (ch) => /[A-Za-z0-9]/.test(ch)
+        return isAlnum(prev) && isAlnum(next) ? ' ' : ''
+      })
+      return l
+    })
+    const collapsed = []
+    for (const line of lines) {
+      if (!line) {
+        if (collapsed.length === 0) continue
+        if (collapsed[collapsed.length - 1] === '') continue
+        collapsed.push('')
+      } else {
+        collapsed.push(line)
+      }
+    }
+    while (collapsed.length && collapsed[collapsed.length - 1] === '') {
+      collapsed.pop()
+    }
+    return collapsed
+  }
+
+  // 軟斷行合併：非空且非標記哨符之連續行，視為同段續行而合併為一行；
+  // 前一行若以 DOWNLOAD_TERMINATOR_RE 結尾，則改另起新行；標記哨符所
+  // 在之行（以哨符起始字元 `` 起首者）一律獨立成行；空行（區塊邊界
+  // 所產生之段落分隔）一併保留。
+  function mergeSoftWraps(lines) {
+    const result = []
+    for (const line of lines) {
+      if (!line) {
+        if (result.length === 0) continue
+        if (result[result.length - 1] === '') continue
+        result.push('')
+        continue
+      }
+      const isMarker = line.charCodeAt(0) === 0x0001
+      if (isMarker) {
+        result.push(line)
+        continue
+      }
+      const prev = result.length > 0 ? result[result.length - 1] : null
+      if (prev === null || prev === '') {
+        result.push(line)
+        continue
+      }
+      if (DOWNLOAD_TERMINATOR_RE.test(prev)) {
+        result.push(line)
+      } else {
+        result[result.length - 1] = prev + line
+      }
+    }
+    return result
+  }
+
+  // .txt 路徑：走訪、正規化、合併軟斷行，最終剝除哨符後輸出。
+  function extractFullText(body, items) {
+    if (!body) return ''
+    const raw = walkBodyForDownload(body, items, null)
+    const lines = normalizeDownloadLines(raw)
+    const merged = mergeSoftWraps(lines)
+    const stripped = merged.map((line) => {
+      if (!line) return line
+      if (line.charCodeAt(0) !== 0x0001) return line
+      const m = line.match(LM_RE)
+      return m ? m[2] : line
+    })
+    while (stripped.length && stripped[stripped.length - 1] === '') {
+      stripped.pop()
+    }
+    return stripped.join('\n')
+  }
+
+  // ----- Markdown 擷取（標題層次與選用之螢光筆匯出） -----
+  //
+  // 較 extractFullText 多處理兩事：
+  //   1. 依 cachedOutlineItems 將判決架構層級 0–1（主文／事實／理由／壹／
+  //      一）轉為 Markdown H2、H3 標題；H1 保留予檔頭字號；層級 2 以下
+  //      （(一)／㈠／1.／⒈／(1)／⑴／①）維持為內文。判準：錨點 span 須
+  //      位於行首（前方僅得有空白或換行），藉此排除 annotateAnchors 於
+  //      句中位置插入之 CJK 圓圈數字錨點，避免誤升為標題。
+  //   2. （可選）若指定螢光筆清單，於走訪文字節點時以哨符包裹高亮字段；
+  //      末段轉為 `<mark style="background:..." data-hl-color="...">` HTML
+  //      標籤，俾於 Obsidian 閱讀模式呈現對應顏色（純 Markdown 之
+  //      `==text==` 僅支援單一黃色，無從區分六色）。跨段落之高亮於後處
+  //      理階段拆為逐段獨立包裹，避免單一 `<mark>` 跨越空行致 Markdown
+  //      解析失敗。
+  const HL_HEX = {
+    yellow: '#fde047',
+    red: '#f87171',
+    orange: '#fb923c',
+    green: '#4ade80',
+    blue: '#60a5fa',
+    purple: '#c084fc',
+  }
+  const HL_OPACITY = {
+    yellow: 0.55,
+    red: 0.45,
+    orange: 0.48,
+    green: 0.45,
+    blue: 0.42,
+    purple: 0.42,
+  }
+
+  function hexToRgba(hex, opacity) {
+    const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+    if (!m) return hex
+    const r = parseInt(m[1], 16)
+    const g = parseInt(m[2], 16)
+    const b = parseInt(m[3], 16)
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`
+  }
+
+  // 計算螢光筆 Range 與單一文字節點之交集，回傳該節點內之 [start, end]
+  // 字元索引；無交集則回傳 null。先以 selectNodeContents 包覆當前節點，
+  // 再以 compareBoundaryPoints 判定四個邊界；跨節點之 Range 於當前節點
+  // 內，一律以 [0, length] 為交集邊界。
+  function intersectRangeWithTextNode(highlightRange, node) {
+    try {
+      const doc = node.ownerDocument
+      if (!doc) return null
+      const nodeRange = doc.createRange()
+      nodeRange.selectNodeContents(node)
+      const text = node.nodeValue || ''
+      if (highlightRange.compareBoundaryPoints(Range.END_TO_START, nodeRange) >= 0) return null
+      if (highlightRange.compareBoundaryPoints(Range.START_TO_END, nodeRange) <= 0) return null
+      let localStart = 0
+      let localEnd = text.length
+      if (highlightRange.compareBoundaryPoints(Range.START_TO_START, nodeRange) > 0) {
+        localStart = highlightRange.startContainer === node
+          ? highlightRange.startOffset
+          : 0
+      }
+      if (highlightRange.compareBoundaryPoints(Range.END_TO_END, nodeRange) < 0) {
+        localEnd = highlightRange.endContainer === node
+          ? highlightRange.endOffset
+          : text.length
+      }
+      if (localStart >= localEnd) return null
+      return { start: localStart, end: localEnd }
+    } catch (_) {
+      return null
+    }
+  }
+
+  // .md 路徑：走訪（含螢光筆哨符）、跨段落高亮拆解、正規化、合併軟斷
+  // 行；標記哨符所在之行依 isValidOutlineMarker 驗證合法性，層級 0–1 升
+  // 為 H2、H3 標題，層級 2 以下及不合法者（即 annotateAnchors 為「主文」
+  // 補入之 level-1 合成項目）一律降為普通段落；末段將螢光筆哨符轉為
+  // `<mark style="background:...">` HTML。
+  function extractFullTextForMd(body, items, highlights) {
+    if (!body) return ''
+    const hlList = (highlights || []).filter(
+      (h) => h && h.range && !h.range.collapsed && HL_HEX[h.color],
+    )
+    const hasHl = hlList.length > 0
+
+    let raw = walkBodyForDownload(body, items, hlList)
+
+    // 跨段落高亮：將內含 `\n` 之高亮哨符序列拆為逐段獨立包裹，避免
+    // 單一 `<mark>` 跨越空行致 Markdown 解析失敗；空段落不另行包裹。
+    if (hasHl) {
+      const hlRe = new RegExp(
+        HL_OPEN_PFX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+          '([a-z]+)' +
+          HL_OPEN_END +
+          '([\\s\\S]*?)' +
+          HL_CLOSE,
+        'g',
+      )
+      raw = raw.replace(hlRe, (m, color, content) => {
+        if (content.indexOf('\n') === -1) return m
+        return content
+          .split('\n')
+          .map((seg) =>
+            seg.trim()
+              ? HL_OPEN_PFX + color + HL_OPEN_END + seg + HL_CLOSE
+              : seg,
+          )
+          .join('\n')
+      })
+    }
+
+    const lines = normalizeDownloadLines(raw)
+    const merged = mergeSoftWraps(lines)
+
+    const renderHl = (line) => {
+      if (!hasHl) return line
+      const re = new RegExp(
+        HL_OPEN_PFX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+          '([a-z]+)' +
+          HL_OPEN_END +
+          '([\\s\\S]*?)' +
+          HL_CLOSE,
+        'g',
+      )
+      return line.replace(re, (m, color, text) => {
+        const hex = HL_HEX[color] || HL_HEX.yellow
+        const opacity = HL_OPACITY[color] || 0.5
+        const bg = hexToRgba(hex, opacity)
+        // 一併輸出 data-hl-color，便於使用者於 Obsidian 以自訂 CSS 進階調整
+        return `<mark style="background: ${bg}" data-hl-color="${color}">${text}</mark>`
+      })
+    }
+
+    const result = []
+    for (const line of merged) {
+      if (!line) {
+        if (result.length === 0) continue
+        if (result[result.length - 1] === '') continue
+        result.push('')
+        continue
+      }
+      if (line.charCodeAt(0) === 0x0001) {
+        const m = line.match(LM_RE)
+        if (m) {
+          const level = Number(m[1])
+          const content = m[2].trim()
+          if (!isValidOutlineMarker(level, content)) {
+            // 合成項目或標記文字不合法者，降為普通段落，避免不當升為 H3。
+            const plain = renderHl(content)
+            if (!plain) continue
+            result.push(plain)
+            continue
+          }
+          const rendered = renderHl(content)
+          if (!rendered) continue
+          if (level <= 1) {
+            if (result.length && result[result.length - 1] !== '') result.push('')
+            result.push('#'.repeat(level + 2) + ' ' + rendered)
+            result.push('')
+          } else {
+            // 層級 2–5（(一)／㈠／1.／⒈／(1)／⑴／①）維持獨立段落，不升
+            // 標題：H1 保留予字號、H2 對應層級 0、H3 對應層級 1；刻意不
+            // 延伸至 H4 以下，以免 Obsidian Outline 層級過深、視覺擁擠。
+            result.push(rendered)
+          }
+          continue
+        }
+      }
+      result.push(renderHl(line))
+    }
+    while (result.length && result[result.length - 1] === '') result.pop()
+    return result.join('\n')
+  }
+
+  // ----- 下載檔案組裝 -----
+  //
+  // TXT：後設資料條列於檔首，後接分隔線與正文段落。
+  // MD ：YAML frontmatter（Obsidian Properties 可直接索引）、字號標題與正文。
+  function buildJudgmentTxt(meta, fullText, sourceUrl) {
+    const lines = []
+    META_KEYS.forEach((k) => {
+      if (meta[k]) lines.push(`${k}：${meta[k]}`)
+    })
+    if (sourceUrl) lines.push(`來源：${sourceUrl}`)
+    lines.push(`擷取時間：${formatNowReadable()}`)
+    lines.push('')
+    lines.push('────────────────')
+    lines.push('')
+    lines.push(fullText)
+    return lines.join('\n')
+  }
+
+  function yamlEscape(v) {
+    // 凡含 YAML 特殊字元、冒號、引號或首尾空白者，一律以雙引號包覆並
+    // 跳脫；其餘原樣輸出，以保留中文閱讀性。
+    if (
+      /[:#\[\]\{\}&\*!\|>'"%@`]/.test(v) ||
+      /^\s|\s$/.test(v) ||
+      /^(?:true|false|null|yes|no|on|off)$/i.test(v.trim())
+    ) {
+      return '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"'
+    }
+    return v
+  }
+
+  function buildJudgmentMd(meta, fullText, sourceUrl) {
+    const out = []
+    out.push('---')
+    META_KEYS.forEach((k) => {
+      if (meta[k]) out.push(`${k}: ${yamlEscape(meta[k])}`)
+    })
+    if (sourceUrl) out.push(`來源: ${yamlEscape(sourceUrl)}`)
+    out.push(`擷取時間: ${yamlEscape(formatNowReadable())}`)
+    out.push('---')
+    out.push('')
+    if (meta['裁判字號']) {
+      out.push(`# ${meta['裁判字號']}`)
+      out.push('')
+    }
+    out.push(fullText)
+    return out.join('\n')
+  }
+
+  function formatNowReadable() {
+    const d = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
+  function formatStamp() {
+    const d = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`
+  }
+
+  function safeFilename(name, fallback) {
+    let s = (name || '').replace(/[\\/:*?"<>|]/g, '').trim()
+    if (!s) s = fallback || 'judicial-fulltext'
+    if (s.length > 120) s = s.slice(0, 120)
+    return s
+  }
+
+  function downloadBlob(filename, mime, content) {
+    try {
+      const blob = new Blob([content], { type: mime })
+      const url = URL.createObjectURL(blob)
+      const a = hostDoc.createElement('a')
+      a.href = url
+      a.download = filename
+      a.style.display = 'none'
+      hostDoc.body.appendChild(a)
+      a.click()
+      setTimeout(() => {
+        try { hostDoc.body.removeChild(a) } catch (_) {}
+        URL.revokeObjectURL(url)
+      }, 1000)
+      return true
+    } catch (err) {
+      console.warn('[judicial-outline] download failed', err)
+      return false
+    }
+  }
+
+  // 下載當前裁判書全文。format 為 'txt' 或 'md'；includeHl 僅於 md 模式
+  // 生效，用以控制是否將螢光筆段落以 `<mark>` 標籤包覆。
+  function downloadJudgmentAs(format, includeHl) {
+    const body = findBodyContainer()
+    if (!body) {
+      showToast('找不到判決正文，無法下載')
+      return
+    }
+    let fullText
+    const items = cachedOutlineItems || []
+    if (format === 'md') {
+      const hls = includeHl
+        ? (highlightEntries || []).filter((e) => e && e.range && !e.range.collapsed)
+        : []
+      fullText = extractFullTextForMd(body, items, hls)
+    } else {
+      // .txt 亦套用「軟斷行合併」邏輯，依判決架構標記與句末標點維持段落
+      // 結構；items 為空時，退回純粹依區塊邊界與終結符判斷。
+      fullText = extractFullText(body, items)
+    }
+    if (!fullText.trim()) {
+      showToast('正文內容為空，無法下載')
+      return
+    }
+    const meta = extractMetadata()
+    let permalink = ''
+    try {
+      const resolved = resolveSource()
+      permalink = (resolved && resolved.url) || ''
+    } catch (_) {}
+    const caseLabel = meta['裁判字號'] || ''
+    const fallback = `judicial-fulltext-${formatStamp()}`
+    const baseName = safeFilename(caseLabel, fallback)
+    if (format === 'md') {
+      const ok = downloadBlob(
+        baseName + '.md',
+        'text/markdown;charset=utf-8',
+        buildJudgmentMd(meta, fullText, permalink),
+      )
+      if (ok) showToast(includeHl ? '已下載 .md 檔（含螢光筆）' : '已下載 .md 檔')
+    } else {
+      const ok = downloadBlob(
+        baseName + '.txt',
+        'text/plain;charset=utf-8',
+        buildJudgmentTxt(meta, fullText, permalink),
+      )
+      if (ok) showToast('已下載 .txt 檔')
+    }
   }
 
   // ----- Copy text normalizer -----
@@ -3078,7 +3755,12 @@
     }
     if (!group) {
       group = buildHighlightsTabDom()
-      aside.appendChild(group)
+      // 螢光筆耳標固定排於「下載」耳標之前；下載耳標若不存在（使用者已關閉
+      // 下載功能）則 insertBefore(group, null) 退化為 appendChild，行為一致。
+      const downloadGroup = aside.querySelector(
+        '.fint-tab-group[data-group="download"]',
+      )
+      aside.insertBefore(group, downloadGroup || null)
     }
     const list = group.querySelector('.fint-highlights-list')
     const head = group.querySelector('.fint-outline-head')
@@ -3141,6 +3823,9 @@
   //      自動中止，避免在非判決頁面持續觀察）。
   let sidebarBuilt = false
   let cachedCaseLabel = null
+  // 暫存最近一次 annotateAnchors 回傳之 items（{id, level, text}）；下載
+  // .md 時據以將判決架構層級轉為 H2、H3 標題（H1 保留予字號）。
+  let cachedOutlineItems = []
 
   function getCaseLabel() {
     if (cachedCaseLabel !== null) return cachedCaseLabel
@@ -3156,6 +3841,7 @@
     const body = findBodyContainer()
     if (!body) return false
     const items = annotateAnchors(body)
+    cachedOutlineItems = items || []
     // 引文抽取於 annotateAnchors 之後執行：annotateAnchors 插入的錨點為
     // 空 <span>，不影響正文 text content 扁平化結果，兩者可共存。
     // 使用者關閉「參照耳標」設定時完全跳過抽取步驟，以免在大篇判決中
@@ -3196,6 +3882,7 @@
       removeExistingSidebar()
       sidebarBuilt = false
       cachedCaseLabel = null
+      cachedOutlineItems = []
 
       if (currentObserver) {
         currentObserver.disconnect()

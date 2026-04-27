@@ -7,10 +7,10 @@
 ## Short description（≤132 字元）
 
 ### 繁體中文
-> 裁判書頁面加上「判決架構」導覽、最高法院引文參照清單、六色螢光筆（可拖曳排序、關瀏覽器前保留）、智慧複製（去分行、附字號），並提供瀏覽器側邊欄「判決剪貼簿」跨分頁保存並匯出複製過的段落。
+> 裁判書頁面加上「判決架構」導覽、最高法院引文參照清單、六色螢光筆（可拖曳排序、關瀏覽器前保留）、判決全文下載（.txt／.md）、智慧複製（去分行、附字號），並提供瀏覽器側邊欄「判決剪貼簿」跨分頁保存並匯出複製過的段落。
 
 ### English
-> Judgment outline sidebar, Supreme Court citation panel, six-color highlighter (drag-to-reorder, persisted until browser close), smart copy (strip line breaks + append citation), and a browser side panel clipboard to save and export copied passages across tabs.
+> Judgment outline sidebar, Supreme Court citation panel, six-color highlighter (drag-to-reorder, persisted until browser close), full-text judgment download (.txt / .md with YAML frontmatter for Obsidian), smart copy (strip line breaks + append citation), and a browser side panel clipboard to save and export copied passages across tabs.
 
 ---
 
@@ -29,6 +29,9 @@
 🖍 **螢光筆（六色）**
 選取判決正文後於文字上方浮出工具列，點擊六色（黃／紅／橘／綠／藍／紫）色塊即上色，另附「清除」鈕可抹除與選取重疊之既有標記。視覺呈現採 CSS Highlight API（每色註冊為一組 `::highlight(fint-hl-<color>)`），零 DOM 變動，不與既有階層耳標及引文長駐高亮衝突；同段可多色疊色。側邊欄另設「螢光筆」耳標，與「判決架構／參照」並列，完整呈現每段螢光全文（非摘要），點擊即捲回原文並以黃色暫態高亮；右側「×」鈕即時移除單段，左側拖曳把手可跨顏色任意重排。段落以文字指紋序列化至 `chrome.storage.session`（key 採 hostname + 判決 `id` query），關閉瀏覽器前持續保留；同一 session 內自剪貼簿卡片回到原文、或直貼 `data.aspx?id=...` 直連網址，皆能還原同一份標記。後台可設「啟用螢光筆」總開關與「螢光筆顏色」六色勾選。
 
+⬇️ **判決全文下載（.txt／.md）**
+側邊欄「下載」耳標可將當前判決全文以兩種格式匯出。檔名以裁判字號自動命名（剔除作業系統不允許之字元；若擷取不到字號，退回 `judicial-fulltext-YYYYMMDD-HHmm`）。檔頭附上裁判字號、裁判日期、裁判案由、相關法條（兼容 FJUD `<dt>／<dd>` 與 FINT `.col-th／.col-td` 兩種版面；以 `innerText` 自動略除頁面隱藏節點之雜訊文字）、來源永久連結與擷取時間。`.md` 採 **YAML 前言區塊（frontmatter）**，可直接拖入 Obsidian，由屬性面板（Properties）逕行索引、搜尋、跨筆記引用；正文置於 `# 裁判字號` 標題之下，並依「判決架構」偵測結果，將層級 0–1（主文／事實／理由／壹／貳／一／二）自動升為 `##`／`###` 標題，於 Obsidian 大綱直接呈現三層導覽；層級 2 以下（(一)／㈠／1.／⒈ 等）維持為內文，不升標題，避免側欄層級過深。下載卡片並提供「一併匯出螢光筆」勾選，勾選後將螢光筆段落以 `<mark style="background: rgba(...);" data-hl-color="yellow|red|orange|green|blue|purple">` 包覆，於 Obsidian 閱讀模式呈現六色；跨段落之高亮，於空行處自動拆為逐段獨立 `<mark>`，避免 Markdown 解析失敗。正文段落以單一空行劃分，並以與「智慧複製」相同套規則正規化每行。設定頁可關閉本耳標。
+
 ✂️ **智慧複製**
 選取任何一段判決文字後複製，自動移除換行與中日韓字元間的多餘空白，並於尾端附上「（<裁判字號>意旨參照）」，方便直接貼進書狀或筆記。英數字之間的空格（如 "NT 300"）會被保留。字號附加功能可在設定頁或側邊欄頂端一鍵關閉。另提供 **Cmd+X / Ctrl+X** 快速鍵：同樣正規化後寫入剪貼簿，但不存入剪貼簿卡片，適用於僅需一次性貼到外部工具、不希望累積卡片清單的情境。
 
@@ -44,7 +47,8 @@
   　• 「啟用參照」開關（預設：開），關閉後僅保留「判決架構」耳標，正文亦不再長駐高亮括號附記
   　• 「啟用螢光筆」開關（預設：開），關閉後停用工具列與螢光筆耳標，儲存之標記保留，再次開啟即還原
   　• 「螢光筆顏色」六色複選（黃／紅／橘／綠／藍／紫），未勾選之色不出現於工具列；零勾選時退回預設全選
-  　• 法令判解系統、裁判書系統、內網判解函釋、內網裁判書系統之「耳標位置」（左／右）可分別設定，三個耳標（判決架構／參照／螢光筆）同步遵循
+  　• 「啟用下載耳標」開關（預設：開），關閉後側邊欄不顯「下載」耳標，既有功能不受影響
+  　• 法令判解系統、裁判書系統、內網判解函釋、內網裁判書系統之「耳標位置」（左／右）可分別設定，四個耳標（判決架構／參照／螢光筆／下載）同步遵循
   　• 「展開深度」可在 1 到 6 層之間調整（預設 3）：
   　　　1 — 主文／事實／理由／附表 + 壹、貳、參
   　　　2 — 再加上 一、二、三
@@ -71,6 +75,17 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **適合誰**
 律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
+
+🆕 **v0.3.0 更新**
+  • **新增判決全文下載功能**：側邊欄第四個耳標「下載」可將當前判決全文以 `.txt`（純文字）或 `.md`（YAML 前言區塊，可直接拖入 Obsidian）兩種格式匯出
+  • **`.md` 自動加入 H2–H3 標題**：依「判決架構」偵測結果，將層級 0–1（主文／事實／理由／壹／貳／一／二）對應為 Markdown `##`／`###` 標題；H1 保留予檔頭字號，層級 2 以下維持為內文，不升標題。Obsidian 大綱與全域搜尋可直接以三層架構導覽
+  • **`.md` 可選一併匯出螢光筆**：「下載」卡片提供「一併匯出螢光筆（僅 .md）」勾選；勾選後將螢光筆段落以 `<mark style="background: rgba(...);" data-hl-color="...">` 包覆，於 Obsidian 閱讀模式呈現六色；跨段落之高亮，於空行處自動拆為逐段獨立 `<mark>`，避免 Markdown 解析失敗
+  • **軟斷行自動合併**：FJUD 部分判決頁將每行硬斷於約三十字寬度（例如「⋯申請在坐落\\n南投縣⋯」），下載時依「區塊邊界」對「視覺折行」二分，再依前一行終結符（`。！？；：?!;:`）決定是否合併，使下載結果還原為段落結構而非逐行片段
+  • **參照、下載耳標高度統一**：二者皆為兩字，原本 96px、64px 不一致，本次與「螢光筆」一同收斂為 80px，與「判決架構」（128px）形成主要、次要兩階層次
+  • 檔名以裁判字號自動命名；檔頭附上裁判字號、裁判日期、裁判案由、相關法條與來源永久連結
+  • `.md` 採 YAML 前言區塊（frontmatter），可直接拖入 Obsidian 並由屬性面板（Properties）逕行索引、搜尋
+  • 正文段落以單一空行劃分，並以與「智慧複製」相同套規則正規化每行
+  • 後台新增「啟用下載耳標」總開關（預設開）；四個耳標（判決架構、參照、螢光筆、下載）同步遵循各網站之左右側位置設定
 
 🆕 **v0.2.9 更新**
   • **判決架構耳標行首判準統一**：項目符號一律以「位於段落開頭」為認列原則；正文行中引用法條之列項（如「事項表明之：一、⋯。二、⋯」「支出限於：㈠⋯、㈡⋯」）及卷宗冊次編號（如「前審卷㈠第69頁」）不再被誤認為判決架構層級
@@ -182,6 +197,9 @@ Automatically detects the full 6-level Taiwanese legal numbering hierarchy — f
 🖍 **Six-color highlighter**
 Select any judgment text and a floating toolbar appears above the selection with six color swatches (yellow / red / orange / green / blue / purple) plus an "erase" button that removes overlapping marks. Coloring uses the CSS Highlight API (one Highlight per color registered as `::highlight(fint-hl-<color>)`), so there's zero DOM mutation and no conflict with the outline anchors or inline citation highlight; multiple colors can overlap on the same passage. A dedicated **Highlighter** tab joins the Outline and Citations tabs in the sidebar, listing every marked passage in full (not truncated); click to scroll back with a transient yellow flash, or use the × button to remove a single entry. A drag handle on each row lets you reorder freely across colors, and the order is persisted. Passages are serialized as text fingerprints (`text` + 30-char `prefix`/`suffix` context) into `chrome.storage.session` keyed by `fint-hl:<hostname>:<判決 id>`, so reloads, iframe navigations within the same session, and direct-open `data.aspx?id=...` URLs (e.g. from clipboard cards) all restore the same marks. The options page offers an **Enable highlighter** master toggle and a six-color checklist controlling which swatches appear.
 
+⬇️ **Full-text download (.txt / .md)**
+The new **Download** sidebar tab exports the current ruling's full text in two formats. Filenames are auto-derived from the case label (illegal filename characters stripped; falls back to `judicial-fulltext-YYYYMMDD-HHmm` if no label). Each file's header carries the case label, judgment date, case category, related statutes (compatible with both FJUD `<dt>／<dd>` and FINT `.col-th／.col-td` layouts; uses `innerText` so hidden auxiliary nodes are skipped automatically), the canonical permalink, and a capture timestamp. The `.md` variant emits **YAML frontmatter** so Obsidian can index, search, and cross-reference each judgment via Properties; the body is placed under a `# <case label>` heading and the outline is auto-promoted to `##` / `###` headings (levels 0–1 → H2–H3), giving Obsidian Outline a three-level navigable structure out of the box; level 2 and below (`(一)` / `㈠` / `1.` / `⒈` etc.) stay as plain paragraphs to keep the navigation panel from getting too deep. A checkbox on the Download card additionally lets users export highlighter marks alongside the text — when checked, highlighted passages are wrapped in `<mark style="background: rgba(...);" data-hl-color="yellow|red|orange|green|blue|purple">` so Obsidian Reading View renders them in the original six colors; cross-paragraph highlights are automatically split on blank lines into per-paragraph `<mark>` spans to keep Markdown parsing robust. Body paragraphs are separated by single blank lines, normalized with the same rules as Smart Copy. The Download tab can be disabled in the options page.
+
 ✂️ **Smart copy**
 Select any judgment text and copy it — line breaks and padding whitespace between CJK characters are stripped automatically, and the citation suffix `（<case-number>意旨參照）` is appended. Spaces between ASCII alphanumerics (like "NT 300") are preserved. The citation suffix can be toggled off from either the options page or the side panel header. A secondary shortcut **Cmd+X / Ctrl+X** also writes the normalized (and optionally citation-suffixed) text to the clipboard but skips the clipboard-card store, for one-off pastes that shouldn't accumulate in the card list.
 
@@ -197,7 +215,8 @@ Each card shows the source tag (裁判書 / 判解函釋 / 內網判解函釋 / 
   • Toggle **"Enable Citations"** (default: on); when off, the Citations tab and inline citation highlight are skipped entirely
   • Toggle **"Enable Highlighter"** (default: on); when off, the floating toolbar and the Highlighter tab are disabled, but previously saved marks remain and reappear when re-enabled
   • **"Highlighter colors"** six-way checklist; unselected colors are omitted from the toolbar (selecting none falls back to the full six)
-  • Per-site sidebar position (left / right) for FINT, FJUD, intranet FINT, and intranet FJUD — the Outline, Citations, and Highlighter tabs all follow the same per-site placement
+  • Toggle **"Enable Download tab"** (default: on); when off the Download tab is hidden, but no other functionality is affected
+  • Per-site sidebar position (left / right) for FINT, FJUD, intranet FINT, and intranet FJUD — the Outline, Citations, Highlighter, and Download tabs all follow the same per-site placement
   • "Expand depth" slider 1–6 (default 3): controls how deep the outline auto-expands
   • All changes apply instantly to open tabs; user settings sync across devices via your Chrome account
 
@@ -218,6 +237,17 @@ https://github.com/han0302-cyber/judicial-outline-extension
 
 **Who is it for**
 Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
+
+🆕 **v0.3.0 changes**
+  • **New full-text judgment download**: a fourth sidebar tab "Download" exports the current ruling as `.txt` or `.md` (YAML frontmatter, Obsidian-friendly)
+  • **`.md` auto-emits H2–H3 headings from the outline**: outline levels 0–1 (主文 / 事實 / 理由 / 壹 / 貳 / 一 / 二) become `##` / `###` headings; H1 is reserved for the case label, level 2 and below (`(一)` / `㈠` / `1.` etc.) stay as plain paragraphs. Obsidian Outline and global search can navigate the judgment in three levels with no extra setup
+  • **`.md` can optionally export highlighter marks**: a new checkbox on the Download card wraps highlighted passages in `<mark style="background: rgba(...);" data-hl-color="...">` so Obsidian Reading View renders them in the original six colors; cross-paragraph highlights are auto-split on blank lines into per-paragraph `<mark>` spans for robust Markdown parsing
+  • **Auto-merge of soft line wraps**: some FJUD judgment pages hard-wrap every ~30 chars (e.g. "⋯申請在坐落\\n南投縣⋯"); downloads now distinguish block boundaries from visual line wraps, then merge consecutive non-terminated lines so the exported text reflects paragraph structure rather than a column-wrapped fragment list
+  • **Tab heights unified for the three secondary tabs**: Citations, Highlighter, and Download tabs are now all 80px (previously 96 / 80 / 64), keeping the primary "Outline" tab (128px) visually distinct while removing the inconsistency between the two two-character tabs (Citations and Download)
+  • Filenames are auto-derived from the case label; headers carry case label, judgment date, case category, related statutes, the canonical permalink, and a capture timestamp
+  • The `.md` format uses YAML frontmatter so Obsidian can index it via Properties out of the box
+  • Body paragraphs separated by single blank lines, normalized with the same rules as Smart Copy
+  • New options-page toggle "Enable Download tab" (default on); per-site left/right placement now applies uniformly to all four tabs (Outline / Citations / Highlighter / Download)
 
 🆕 **v0.2.9 changes**
   • **Outline detection: unified physical line-start rule**: enumeration markers (壹 / 一 / ㈠ / (一) / 1. / ⒈ / (1) / ⑴ / ① and related forms) are only accepted at physical line starts. Inline statute lists (e.g. 「事項表明之：一、⋯。二、⋯」「支出限於：㈠⋯、㈡⋯」) and case-volume ordinals (e.g. 「前審卷㈠第69頁」) are no longer mis-classified as outline bookmarks
