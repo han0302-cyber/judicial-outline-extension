@@ -113,7 +113,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
   padding: 8px 10px;
   border: 1px dashed var(--fint-border);
   border-radius: 8px;
@@ -141,7 +141,7 @@
 #fint-outline-sidebar .fint-download-btn-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 #fint-outline-sidebar .fint-download-btn {
@@ -170,6 +170,36 @@
 #fint-outline-sidebar .fint-download-btn:active {
   background: var(--fint-primary);
   color: #ffffff;
+}
+
+/* 一鍵複製全文：填色強調按鈕，置於卡片頂端，與下方「匯出螢光筆」選項
+ * 以下緣間距區隔，視覺上突顯為主要動作。
+ * 須置於 .fint-download-btn 規則之後：該規則之 `all: unset` 會重置 margin，
+ * 等特異度下以後出現者勝出，故本規則必須在其後才能套用 margin-bottom。 */
+#fint-outline-sidebar .fint-copyfull-btn {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 16px;
+  background: var(--fint-primary);
+  border-color: var(--fint-primary);
+  color: #ffffff;
+}
+
+#fint-outline-sidebar .fint-copyfull-btn:hover {
+  background: var(--fint-primary-dark);
+  border-color: var(--fint-primary-dark);
+  color: #ffffff;
+}
+
+#fint-outline-sidebar .fint-copyfull-btn:active {
+  background: var(--fint-primary-dark);
+  border-color: var(--fint-primary-dark);
+  color: #ffffff;
+}
+
+#fint-outline-sidebar .fint-copyfull-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
 }
 
 #fint-outline-sidebar .fint-outline-card {

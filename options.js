@@ -18,6 +18,7 @@ function loadSettings() {
     {
       positions: DEFAULTS,
       appendCitation: true,
+      preserveLineBreaks: false,
       maxDepth: 3,
       showCitations: true,
       enableHighlighter: true,
@@ -38,6 +39,11 @@ function loadSettings() {
         'input[name="citation"][value="' + citation + '"]',
       )
       if (cInput) cInput.checked = true
+      const preserveLB = result.preserveLineBreaks === true ? 'on' : 'off'
+      const plbInput = document.querySelector(
+        'input[name="preserveLineBreaks"][value="' + preserveLB + '"]',
+      )
+      if (plbInput) plbInput.checked = true
       const showCit = result.showCitations === false ? 'off' : 'on'
       const scInput = document.querySelector(
         'input[name="showCitations"][value="' + showCit + '"]',
@@ -79,6 +85,10 @@ function saveSettings() {
   })
   const cChecked = document.querySelector('input[name="citation"]:checked')
   const appendCitation = cChecked ? cChecked.value === 'on' : true
+  const plbChecked = document.querySelector(
+    'input[name="preserveLineBreaks"]:checked',
+  )
+  const preserveLineBreaks = plbChecked ? plbChecked.value === 'on' : false
   const scChecked = document.querySelector(
     'input[name="showCitations"]:checked',
   )
@@ -104,6 +114,7 @@ function saveSettings() {
     {
       positions,
       appendCitation,
+      preserveLineBreaks,
       maxDepth,
       showCitations,
       enableHighlighter,

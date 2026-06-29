@@ -44,6 +44,10 @@
     intraj_fjud: 'left',
   }
   let userAppendCitation = true
+  // 複製時是否保留原始分行：預設 false（沿用既有行為，將選取文字之
+  // 換行與空白合併為單一段落）；開啟後改以 cleanCopyTextKeepBreaks 逐行
+  // 正規化，保留與判決頁面相同之斷行，供使用者複製特定段落而欲維持原貌。
+  let userPreserveLineBreaks = false
   // 耳標展開到第幾層（user-facing 深度，1-6）。內部 level 是 0-5，使用者
   // 看到的深度 = 內部 level + 1：
   //   1 = 主文/壹                2 = +一/二              3 = +(一)/㈠ (預設)
@@ -83,6 +87,7 @@
         {
           positions: userPositions,
           appendCitation: true,
+          preserveLineBreaks: false,
           maxDepth: 3,
           showCitations: true,
           enableHighlighter: true,
@@ -95,6 +100,9 @@
           }
           if (result && typeof result.appendCitation === 'boolean') {
             userAppendCitation = result.appendCitation
+          }
+          if (result && typeof result.preserveLineBreaks === 'boolean') {
+            userPreserveLineBreaks = result.preserveLineBreaks
           }
           if (result && typeof result.maxDepth === 'number') {
             userMaxDepth = clampDepth(result.maxDepth)
@@ -149,6 +157,10 @@
         userAppendCitation = changes.appendCitation.newValue !== false
         // Copy handler reads userAppendCitation lazily on each event,
         // so the new value applies immediately to the next copy.
+      }
+      if (changes.preserveLineBreaks) {
+        userPreserveLineBreaks = changes.preserveLineBreaks.newValue === true
+        // 與 appendCitation 同，複製處理器於每次事件即時讀取，立即生效。
       }
       if (changes.maxDepth) {
         userMaxDepth = clampDepth(changes.maxDepth.newValue)
@@ -1626,6 +1638,21 @@
       dlHead.textContent = '下載判決全文'
       dlCard.appendChild(dlHead)
 
+      // 一鍵複製全文：直接將判決正文寫入系統剪貼簿，且
+      //   • 保留判決頁面內之「原始分行」（不執行軟斷行合併）；
+      //   • 一律不在尾端附上「（XX意旨參照）」字號尾綴；
+      //   • 不寫入判決剪貼簿卡片，純粹複製至 OS 剪貼簿。
+      const copyFullBtn = hostDoc.createElement('button')
+      copyFullBtn.type = 'button'
+      copyFullBtn.className = 'fint-download-btn fint-copyfull-btn'
+      copyFullBtn.textContent = '一鍵複製全文'
+      copyFullBtn.title =
+        '複製判決全文至剪貼簿，保留原始分行，且不附「（XX意旨參照）」'
+      copyFullBtn.addEventListener('click', () =>
+        copyJudgmentFullText(copyFullBtn),
+      )
+      dlCard.appendChild(copyFullBtn)
+
       // 「一併匯出螢光筆」勾選：僅作用於 .md 下載；勾選時將本判決所有
       // 螢光筆段落以 <mark style="background:..."> 包入，於 Obsidian
       // 閱讀模式呈現對應顏色。.txt 下載不受此選項影響。
@@ -2032,6 +2059,18 @@
     return stripped.join('\n')
   }
 
+  // 原始分行擷取（供「一鍵複製全文」使用）：刻意不傳入判決架構 items，
+  // 故不插入任何標記哨符；且不執行 mergeSoftWraps，藉此「維持判決頁面
+  // 內之原始分行」——FJUD 每行硬斷之視覺折行原樣保留為獨立一行。仍套用
+  // normalizeDownloadLines 之逐行空白正規化（去除 padding 空白、壓縮連續
+  // 空行、剝除首尾空行），俾移除頁面排版用之多餘空白而不更動斷行結構。
+  function extractFullTextRaw(body) {
+    if (!body) return ''
+    const raw = walkBodyForDownload(body, null, null)
+    const lines = normalizeDownloadLines(raw)
+    return lines.join('\n')
+  }
+
   // ----- Markdown 擷取（標題層次與選用之螢光筆匯出） -----
   //
   // 較 extractFullText 多處理兩事：
@@ -2344,6 +2383,41 @@
     }
   }
 
+  // 一鍵複製判決全文至系統剪貼簿。與 .txt／.md 下載不同之處：
+  //   • 保留判決頁面內之原始分行（extractFullTextRaw 不合併軟斷行）；
+  //   • 不附後設資料標頭，純粹複製判決正文；
+  //   • 一律不在尾端附上「（XX意旨參照）」（不經過 Cmd+C／參照複製路徑）；
+  //   • 不寫入判決剪貼簿卡片。
+  function copyJudgmentFullText(btn) {
+    const body = findBodyContainer()
+    if (!body) {
+      showToast('找不到判決正文，無法複製')
+      return
+    }
+    const text = extractFullTextRaw(body)
+    if (!text.trim()) {
+      showToast('正文內容為空，無法複製')
+      return
+    }
+    Promise.resolve(writeTextToClipboard(text)).then((ok) => {
+      // writeTextToClipboard 成功時 resolve 為 undefined；僅退回 false 時為失敗。
+      if (ok === false) {
+        showToast('複製失敗，請重試')
+        return
+      }
+      showToast('已複製判決全文（保留原始分行）')
+      if (btn) {
+        const orig = btn.textContent
+        btn.textContent = '已複製 ✓'
+        btn.disabled = true
+        setTimeout(() => {
+          btn.textContent = orig
+          btn.disabled = false
+        }, 1400)
+      }
+    })
+  }
+
   // ----- Copy text normalizer -----
   //
   // FINT 的正文每行前後常夾帶半形/全形 padding 空白，若只 strip `\n` 再
@@ -2364,6 +2438,32 @@
       return isAlnum(prev) && isAlnum(next) ? ' ' : ''
     })
     return t.trim()
+  }
+
+  // cleanCopyText 之「保留分行」版本：套用相同的逐行空白正規化（全形空白
+  // 轉換、行內 whitespace run 壓縮、CJK 間多餘空格剔除），但**不**跨行合
+  // 併——以 `\n` 切行、逐行清理後再以 `\n` 接回，藉此維持與判決頁面相同
+  // 之斷行。連續三個以上換行壓縮為至多一個空行，並去除首尾空行。
+  function cleanCopyTextKeepBreaks(raw) {
+    if (!raw) return ''
+    const cleanLine = (line) => {
+      let t = line.replace(/ /g, ' ').replace(/　/g, ' ')
+      t = t.replace(/[ \t\f\v]+/g, ' ')
+      t = t.replace(/ /g, (match, offset, full) => {
+        const prev = full.charAt(offset - 1)
+        const next = full.charAt(offset + 1)
+        const isAlnum = (ch) => /[A-Za-z0-9]/.test(ch)
+        return isAlnum(prev) && isAlnum(next) ? ' ' : ''
+      })
+      return t.trim()
+    }
+    return raw
+      .replace(/\r\n?/g, '\n')
+      .split('\n')
+      .map(cleanLine)
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\n+|\n+$/g, '')
   }
 
   // ----- Clipboard history (session-only, lives in chrome.storage.session) -----
@@ -2540,7 +2640,9 @@
     if (!sel || sel.isCollapsed) return
     const raw = sel.toString()
     if (!raw.trim()) return
-    const clean = cleanCopyText(raw)
+    const clean = userPreserveLineBreaks
+      ? cleanCopyTextKeepBreaks(raw)
+      : cleanCopyText(raw)
     // 字號一律擷取（供卡片顯示），只有在使用者開啟設定時才附加到剪貼簿文字
     const caseLabel = getCaseLabel()
     const suffix = userAppendCitation && caseLabel ? '（' + caseLabel + '意旨參照）' : ''
@@ -2651,7 +2753,9 @@
     if (!range) return
     const rawText = range.toString()
     if (!rawText || !rawText.trim()) return
-    const clean = cleanCopyText(rawText)
+    const clean = userPreserveLineBreaks
+      ? cleanCopyTextKeepBreaks(rawText)
+      : cleanCopyText(rawText)
     const caseLabel = getCaseLabel()
     const suffix =
       userAppendCitation && caseLabel ? '（' + caseLabel + '意旨參照）' : ''
