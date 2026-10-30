@@ -1,16 +1,16 @@
 # Chrome Web Store 上架文案草稿
 
-直接複製貼到 Chrome Web Store Developer Dashboard 對應欄位即可。
+直接複製貼到 Chrome Web Store Developer Dashboard 對應欄位即可。「歷史更新紀錄」一節僅供存查，不貼入 CWS。
 
 ---
 
 ## Short description（≤132 字元）
 
 ### 繁體中文
-> 裁判書頁面加上「判決架構」導覽、最高法院引文參照清單、六色螢光筆（可拖曳排序、關瀏覽器前保留）、判決全文下載（.txt／.md）、智慧複製（去分行、附字號），並提供瀏覽器側邊欄「判決剪貼簿」跨分頁保存並匯出複製過的段落。
+> 為司法院裁判書加上判決架構目錄、引文參照、六色螢光筆、全文下載與一鍵複製；複製時自動去分行、附字號，並以側邊欄判決剪貼簿跨分頁保存段落。
 
 ### English
-> Judgment outline sidebar, Supreme Court citation panel, six-color highlighter (drag-to-reorder, persisted until browser close), full-text judgment download (.txt / .md with YAML frontmatter for Obsidian), smart copy (strip line breaks + append citation), and a browser side panel clipboard to save and export copied passages across tabs.
+> Outline, citations, highlighter, full-text download/copy and smart copy for Taiwan Judicial Yuan rulings, plus a clipboard panel.
 
 ---
 
@@ -18,64 +18,85 @@
 
 ### 繁體中文
 
-📑 **判決架構側欄**
-自動偵測判決書的多層編號標記 —— 從最外層的「壹／貳」、「一、二、」、「(一)／㈠」，到較深的「1.／⒈／１．」、「(1)／⑴／（１）」、再到最深的「①／②／③」共 6 層階層；以及「主文／事實／理由／事實及理由」段落標題，與判決末尾的「附表／附表一／附表甲／附表壹／附表1」等章段（亦相容「附表X（即起訴書附表X）：」「附表X【被告某某部分併辦】：」等編號後夾括號註記之格式）。在頁面左側（或右側，可設定）產生可點擊的目錄，點擊後平滑捲動到對應段落，自動扣掉頁首固定列的遮擋高度。
+閱讀司法院裁判書的輔助工具，讓長篇判決更好讀、更好引用。
 
-側欄會自動跳過引號內被引用的條文（例如「按 X 法第 N 條規定：⋯一、⋯二、⋯」），不會把法條條款誤抓成本篇判決的大綱；卡片寬度也會依當下展開的最深層級自動調整，淺判決保持窄、深判決自動加寬避免標籤被截斷。
+📑 **判決架構**
+自動辨識主文／事實／理由、附表，以及壹、一、(一)、1.、(1)、① 六層編號，於頁緣產生可點擊的目錄。引號內引用的法條款項不會誤列入目錄。
 
-🏛 **參照耳標（裁判意旨引文清單）**
-側邊欄另設獨立「參照」耳標，抽取判決正文所有權威意旨引用並彙整為清單，共涵蓋七類實務寫法：最高法院判決／裁定（`最高法院112年度台上字第187號`）、最高法院大法庭裁定（`最高法院刑事大法庭109年度台上大字第1869號`）、最高法院民刑事庭會議決議（`最高法院94年度第6、7次刑事庭會議決議`，支援多次編號）、法律座談會決議／審查意見（`本院暨所屬法院101年法律座談會民執類提案第18號決議`，涵蓋高院暨所屬法院與高院分院）、大法官釋字解釋（`司法院釋字第679號解釋`）、憲法法庭判決／裁定（`憲法法庭113年憲判字第3號判決`）、最高行政法院庭長法官聯席會議決議（`最高行政法院98年度6月份第1次庭長法官聯席會議決議`）。同一組括號內以頓號並列、第二筆以後省略「最高法院」前綴、跨類混列的寫法亦能逐一拆分並分別歸類。每一筆條目顯示案號 badge 與意旨段落前 90 字摘要（限於同段落內回溯，不跨段抓取），點擊即跳轉至該段落並暫態鵝黃高亮，再點一次清除；七類 badge 依類別分色（主題色／暖琥珀／中性灰／藕紫／深玫瑰紅／淺玫瑰紅／青綠），利於快速辨識。正文中的 `（…）` 引文附記同步以柔和天藍灰底長駐高亮。
+🏛 **參照**
+彙整判決內引用的最高法院裁判、大法庭裁定、決議、法律座談會、大法官解釋與憲法法庭裁判，點擊即跳至引用段落。
 
-🖍 **螢光筆（六色）**
-選取判決正文後於文字上方浮出工具列，點擊六色（黃／紅／橘／綠／藍／紫）色塊即上色，另附「清除」鈕可抹除與選取重疊之既有標記。視覺呈現採 CSS Highlight API（每色註冊為一組 `::highlight(fint-hl-<color>)`），零 DOM 變動，不與既有階層耳標及引文長駐高亮衝突；同段可多色疊色。側邊欄另設「螢光筆」耳標，與「判決架構／參照」並列，完整呈現每段螢光全文（非摘要），點擊即捲回原文並以黃色暫態高亮；右側「×」鈕即時移除單段，左側拖曳把手可跨顏色任意重排。段落以文字指紋序列化至 `chrome.storage.session`（key 採 hostname + 判決 `id` query），關閉瀏覽器前持續保留；同一 session 內自剪貼簿卡片回到原文、或直貼 `data.aspx?id=...` 直連網址，皆能還原同一份標記。後台可設「啟用螢光筆」總開關與「螢光筆顏色」六色勾選。
+🖍 **螢光筆**
+六色標記，於「螢光筆」耳標集中檢視、拖曳排序，點擊即跳回原文。
 
-⬇️ **判決全文下載（.txt／.md）**
-側邊欄「下載」耳標可將當前判決全文以兩種格式匯出。檔名以裁判字號自動命名（剔除作業系統不允許之字元；若擷取不到字號，退回 `judicial-fulltext-YYYYMMDD-HHmm`）。檔頭附上裁判字號、裁判日期、裁判案由、相關法條（兼容 FJUD `<dt>／<dd>` 與 FINT `.col-th／.col-td` 兩種版面；以 `innerText` 自動略除頁面隱藏節點之雜訊文字）、來源永久連結與擷取時間。`.md` 採 **YAML 前言區塊（frontmatter）**，可直接拖入 Obsidian，由屬性面板（Properties）逕行索引、搜尋、跨筆記引用；正文置於 `# 裁判字號` 標題之下，並依「判決架構」偵測結果，將層級 0–1（主文／事實／理由／壹／貳／一／二）自動升為 `##`／`###` 標題，於 Obsidian 大綱直接呈現三層導覽；層級 2 以下（(一)／㈠／1.／⒈ 等）維持為內文，不升標題，避免側欄層級過深。下載卡片並提供「一併匯出螢光筆」勾選，勾選後將螢光筆段落以 `<mark style="background: rgba(...);" data-hl-color="yellow|red|orange|green|blue|purple">` 包覆，於 Obsidian 閱讀模式呈現六色；跨段落之高亮，於空行處自動拆為逐段獨立 `<mark>`，避免 Markdown 解析失敗。正文段落以單一空行劃分，並以與「智慧複製」相同套規則正規化每行。「下載」耳標另提供「複製全文（保留分行）」「複製全文（移除分行）」兩枚按鈕：一鍵將判決正文複製到剪貼簿，前者**保留判決頁面內之原始分行**（不合併軟斷行），後者與 `.txt` 下載之正文相同（合併軟斷行、保留判決架構之分段）；二者均於正文前附上裁判字號、裁判日期、裁判案由、相關法條等頁首欄位（不含來源連結與擷取時間），一律不在尾端附上「（XX意旨參照）」，亦不寫入判決剪貼簿卡片。設定頁可關閉本耳標。
+⬇️ **下載與複製全文**
+  • 下載 .txt 或 .md。.md 含 YAML frontmatter，判決架構轉為標題，可直接放入 Obsidian，並可一併匯出螢光筆
+  • 一鍵複製全文，可選「保留分行」或「移除分行」，均附裁判字號、日期、案由等欄位
 
 ✂️ **智慧複製**
-選取任何一段判決文字後複製，自動移除換行與中日韓字元間的多餘空白，並於尾端附上「（<裁判字號>意旨參照）」，方便直接貼進書狀或筆記。英數字之間的空格（如 "NT 300"）會被保留。字號附加功能可在設定頁或側邊欄頂端一鍵關閉。設定頁另提供「**複製時保留原始分行**」開關（預設關）：開啟後，選取判決文字並複製時會保留與判決頁面相同之斷行，適合複製特定段落並維持原貌；關閉時沿用既有行為（去除分行、合併為連續段落）。另提供 **Cmd+X / Ctrl+X** 快速鍵：同樣正規化後寫入剪貼簿，但不存入剪貼簿卡片，適用於僅需一次性貼到外部工具、不希望累積卡片清單的情境。
+複製選取文字時自動移除分行與多餘空白，並附上「（裁判字號意旨參照）」，可直接貼進書狀。
 
-📋 **判決剪貼簿側邊欄**
-每次 Cmd+C / Ctrl+C 複製後，擴充功能會把「去分行 + 附字號」的完整文字推進 Chrome 瀏覽器原生側邊欄，以卡片形式保存**當次瀏覽期間**的所有判決段落。側邊欄由點擊工具列的擴充功能圖示開啟，**不限於裁判書頁面** —— 切到 Google Docs、Word Online、Obsidian Web、Notion 等任何分頁都看得到同一份卡片清單，點卡片上的「複製」鈕即可貼上，非常適合需要一次引用多段判決文字的書狀撰寫情境。
+📋 **判決剪貼簿**
+複製過的段落以卡片保存在瀏覽器側邊欄，切到 Word、Google Docs 等任何分頁都能取用。支援標籤、備註、搜尋、跳回原文，以及匯出 .txt／.md。
 
-每張卡片包含來源標籤（裁判書 / 判解函釋 / 內網判解函釋 / 內網裁判書）、可點擊的裁判字號（在新分頁開啟原始判決頁面）、複製時間戳與完整內文；色系依來源系統自動切換，採用司法院官方色票。每張卡片的「**前往**」按鈕可直接跳回該段落在原始判決頁面的位置：原分頁仍開啟即切換並滾動、以黃色持續高亮；已關閉或已導航至其他判決則自動開新分頁載入原文後跳轉。複製當下會於選取文字起迄位置插入隱形錨點，前往時以 DOM 直接定位，不依賴 URL 比對。每張卡片亦可加入自訂 **#標籤**（彩色膠囊樣式，顏色跟隨來源主題）及自由文字**備註**，儲存後直接顯示在卡片上。側邊欄頂端提供**關鍵字搜尋列**，可即時篩選卡片內文、字號、備註或 #標籤；搜尋列下方自動彙整所有標籤為可點選的標籤雲，一鍵篩選特定主題。完全重複的內容自動去重並提示「已複製過相同內容」。字體大小可四段調整（小／中／大／特大），標籤與字號隨內文一起縮放。支援將全部卡片匯出為 `.txt` 純文字或 `.md` Markdown 檔（一併帶出 #標籤與備註），`.md` 為 Obsidian 友善的引用區塊格式，判決字號會做為二級標題、內文為引用區塊，可直接拖進 Obsidian 資料庫檢視。
+⚙️ **設定**
+耳標位置（左／右）、目錄展開深度、附字號與保留分行、各功能開關、螢光筆顏色。
 
-**隱私設計**：剪貼簿紀錄只存在 `chrome.storage.session`（Chrome 原生記憶體暫存區），關閉瀏覽器即自動清空，**不寫入硬碟、不上傳雲端、不跨裝置同步**。即使同時開多個瀏覽器視窗，紀錄在同一個瀏覽器程序內共享、另開瀏覽器則各自獨立。
-
-⚙️ **後台設定頁面**
-  　• 「複製時自動附上裁判字號」開關（預設：開），亦可於判決剪貼簿側邊欄頂端即時切換，兩端共用同一設定
-  　• 「複製時保留原始分行」開關（預設：關），開啟後選取文字複製時保留與判決頁面相同之斷行，關閉時則去除分行合併為連續段落
-  　• 「啟用參照」開關（預設：開），關閉後僅保留「判決架構」耳標，正文亦不再長駐高亮括號附記
-  　• 「啟用螢光筆」開關（預設：開），關閉後停用工具列與螢光筆耳標，儲存之標記保留，再次開啟即還原
-  　• 「螢光筆顏色」六色複選（黃／紅／橘／綠／藍／紫），未勾選之色不出現於工具列；零勾選時退回預設全選
-  　• 「啟用下載耳標」開關（預設：開），關閉後側邊欄不顯「下載」耳標，既有功能不受影響
-  　• 法令判解系統、裁判書系統、內網判解函釋、內網裁判書系統之「耳標位置」（左／右）可分別設定，四個耳標（判決架構／參照／螢光筆／下載）同步遵循
-  　• 「展開深度」可在 1 到 6 層之間調整（預設 3）：
-  　　　1 — 主文／事實／理由／附表 + 壹、貳、參
-  　　　2 — 再加上 一、二、三
-  　　　3 — 再加上 (一)、(二) ／ ㈠、㈡（預設）
-  　　　4 — 再加上 1.、2. ／ ⒈、⒉ ／ １．、２．
-  　　　5 — 再加上 (1)、(2) ／ ⑴、⑵ ／ （１）、（２）
-  　　　6 — 再加上 ①、②、③
-  　• 設定變更立即套用到開啟中的分頁，跨裝置透過 Chrome 帳號同步
-
-🎨 **自動主題配色**
-使用司法院官方色票 —— 判解函釋系統 `#336666`（深青）、裁判書系統 `#336633`（深綠）、司法院內網 `#006699`（海軍藍），與各自原網站主視覺融合。剪貼簿卡片的字號標題、按鈕、滑鼠移入背景也會依來源系統切換主題色。
-
-🔖 **支援頁面**
-  - 司法院法令判解系統 — `legal.judicial.gov.tw/FINT/*`
-  - 司法院裁判書系統 — `judgment.judicial.gov.tw/FJUD/*`
-  - 司法院內部網路判解函釋 — `legal.law.intraj/FINT/*`（限院內網路環境）
-  - 司法院內部網路裁判書系統 — `judgment.law.intraj/FJUD/*`（限院內網路環境）
-
-搜尋結果列表頁不會顯示側欄，只在實際判決內容頁才作用。內網版本與外網版本共用同一套邏輯，無需額外安裝。
+🔖 **支援網站**
+司法院裁判書系統、法令判解系統，以及對應之司法院內網版本。
 
 🙈 **隱私**
-本擴充功能不向任何伺服器發送請求，所有資料都只存在於你的瀏覽器本機。判決剪貼簿紀錄只存於記憶體（關瀏覽器即清空），使用者設定透過 Chrome 帳號同步，字體偏好存本機 —— 以上任何資料都不會離開你的瀏覽器、不會傳給任何第三方。原始碼 100% 開源於 GitHub：
+不連線任何伺服器，所有資料只存在本機瀏覽器，判決剪貼簿與螢光筆於關閉瀏覽器後清空。原始碼公開於 GitHub：
 https://github.com/han0302-cyber/judicial-outline-extension
 
-**適合誰**
-律師、法務、法律系學生、研究者 —— 任何需要快速閱讀長篇判決、引用判決文字、或批次整理判決段落到 Word / Google Docs / Obsidian 的人。
+🆕 **v0.3.2 更新**
+  • 一鍵複製全文新增「移除分行」版本，並附上判決頁首欄位
+  • 修正部分頁面複製全文時誤附字號
+
+---
+
+### English
+
+A reading aid for Taiwan Judicial Yuan rulings — easier to navigate, easier to cite.
+
+📑 **Outline**
+Detects 主文／事實／理由, appendix tables, and six levels of numbering (壹, 一, (一), 1., (1), ①), and builds a clickable table of contents on the page edge. Statute clauses quoted inside the ruling are excluded.
+
+🏛 **Citations**
+Lists every Supreme Court ruling, Grand Chamber decision, resolution, judicial conference opinion, Constitutional interpretation and Constitutional Court judgment cited in the text; click to jump to the passage.
+
+🖍 **Highlighter**
+Six colors. Review and reorder all marks in the Highlighter tab; click to jump back.
+
+⬇️ **Download & copy full text**
+  • Download as .txt or .md. The .md includes YAML frontmatter and outline-based headings for Obsidian, with optional highlight export
+  • One-click copy of the full text, with or without the original line breaks, prefixed with the case number, date and subject
+
+✂️ **Smart copy**
+Copying a selection strips line breaks and stray spaces and appends the citation `（<case number>意旨參照）`, ready to paste into a brief.
+
+📋 **Clipboard panel**
+Copied passages are saved as cards in Chrome's side panel, available from any tab (Word, Google Docs, etc.). Tags, memos, search, jump-to-source, and .txt／.md export.
+
+⚙️ **Options**
+Sidebar position (left／right), outline depth, citation suffix and line-break handling, feature toggles, highlighter colors.
+
+🔖 **Supported sites**
+Judicial Yuan Judgments (FJUD) and Legal Search (FINT), plus their intranet versions.
+
+🙈 **Privacy**
+No network requests. All data stays in your browser; clipboard cards and highlights are cleared when the browser closes. Source code on GitHub:
+https://github.com/han0302-cyber/judicial-outline-extension
+
+🆕 **v0.3.2**
+  • "Copy full text" now offers a "Remove line breaks" version and includes the ruling's header fields
+  • Fixed the citation suffix being wrongly appended to "Copy full text" on some pages
+
+---
+
+## 歷史更新紀錄（存查用，不貼入 CWS）
+
+### 繁體中文
 
 🆕 **v0.3.2 更新**
   • **一鍵複製全文分為「保留分行」「移除分行」兩版**：「下載」耳標頂端改為並排兩枚按鈕；「保留分行」沿用前版行為，「移除分行」與 `.txt` 下載之正文相同（合併軟斷行，依判決架構與句末標點維持段落結構）；二者均於正文前附上裁判字號、裁判日期、裁判案由、相關法條等頁首欄位，不附「（XX意旨參照）」、不寫入判決剪貼簿卡片
@@ -196,57 +217,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
   • 新增「複製時自動附上裁判字號」開關
   • 偵測「事實及理由」合併段落為獨立目錄條目
 
----
-
 ### English
-
-📑 **Judgment outline sidebar**
-Automatically detects the full 6-level Taiwanese legal numbering hierarchy — from top-level 壹/貳 → 一/二 → (一)/㈠ → 1./⒈/１． → (1)/⑴/（１） → ①/②/③ — plus the section headings 主文/事實/理由/事實及理由 and trailing 附表 blocks (including 附表一, 附表甲, 附表壹, 附表1 variants). Builds a clickable table of contents on the left (or right, configurable) edge of the page. Clicking an item smoothly scrolls to the corresponding paragraph, with the sticky header offset baked in. Quoted statute citations (e.g. "按 X 法第 N 條規定：⋯一、⋯二、⋯") are skipped so the outline reflects only the ruling's own structure. Card width auto-adjusts to the deepest expanded level, keeping shallow rulings narrow and wide rulings readable.
-
-🖍 **Six-color highlighter**
-Select any judgment text and a floating toolbar appears above the selection with six color swatches (yellow / red / orange / green / blue / purple) plus an "erase" button that removes overlapping marks. Coloring uses the CSS Highlight API (one Highlight per color registered as `::highlight(fint-hl-<color>)`), so there's zero DOM mutation and no conflict with the outline anchors or inline citation highlight; multiple colors can overlap on the same passage. A dedicated **Highlighter** tab joins the Outline and Citations tabs in the sidebar, listing every marked passage in full (not truncated); click to scroll back with a transient yellow flash, or use the × button to remove a single entry. A drag handle on each row lets you reorder freely across colors, and the order is persisted. Passages are serialized as text fingerprints (`text` + 30-char `prefix`/`suffix` context) into `chrome.storage.session` keyed by `fint-hl:<hostname>:<判決 id>`, so reloads, iframe navigations within the same session, and direct-open `data.aspx?id=...` URLs (e.g. from clipboard cards) all restore the same marks. The options page offers an **Enable highlighter** master toggle and a six-color checklist controlling which swatches appear.
-
-⬇️ **Full-text download (.txt / .md)**
-The new **Download** sidebar tab exports the current ruling's full text in two formats. Filenames are auto-derived from the case label (illegal filename characters stripped; falls back to `judicial-fulltext-YYYYMMDD-HHmm` if no label). Each file's header carries the case label, judgment date, case category, related statutes (compatible with both FJUD `<dt>／<dd>` and FINT `.col-th／.col-td` layouts; uses `innerText` so hidden auxiliary nodes are skipped automatically), the canonical permalink, and a capture timestamp. The `.md` variant emits **YAML frontmatter** so Obsidian can index, search, and cross-reference each judgment via Properties; the body is placed under a `# <case label>` heading and the outline is auto-promoted to `##` / `###` headings (levels 0–1 → H2–H3), giving Obsidian Outline a three-level navigable structure out of the box; level 2 and below (`(一)` / `㈠` / `1.` / `⒈` etc.) stay as plain paragraphs to keep the navigation panel from getting too deep. A checkbox on the Download card additionally lets users export highlighter marks alongside the text — when checked, highlighted passages are wrapped in `<mark style="background: rgba(...);" data-hl-color="yellow|red|orange|green|blue|purple">` so Obsidian Reading View renders them in the original six colors; cross-paragraph highlights are automatically split on blank lines into per-paragraph `<mark>` spans to keep Markdown parsing robust. Body paragraphs are separated by single blank lines, normalized with the same rules as Smart Copy. The same tab also offers two **Copy full text** buttons that copy the ruling's body straight to the clipboard: **Keep line breaks** preserves the original on-page line breaks (no soft-wrap merging), while **Remove line breaks** yields the same body text as the `.txt` download (soft wraps merged, outline-based paragraphing kept). Both prepend the header fields shown at the top of the ruling page (case label, judgment date, case category, related statutes — without the permalink or capture time); neither appends the `（…意旨參照）` citation suffix or adds a clipboard card. The Download tab can be disabled in the options page.
-
-✂️ **Smart copy**
-Select any judgment text and copy it — line breaks and padding whitespace between CJK characters are stripped automatically, and the citation suffix `（<case-number>意旨參照）` is appended. Spaces between ASCII alphanumerics (like "NT 300") are preserved. The citation suffix can be toggled off from either the options page or the side panel header. A **"preserve original line breaks"** option in the options page (default off) keeps the on-page line breaks when copying a selection — for when you want to copy a specific passage verbatim; when off, line breaks are stripped and merged into a continuous paragraph as before. A secondary shortcut **Cmd+X / Ctrl+X** also writes the normalized (and optionally citation-suffixed) text to the clipboard but skips the clipboard-card store, for one-off pastes that shouldn't accumulate in the card list.
-
-📋 **Clipboard side panel**
-Every Cmd+C / Ctrl+C is also saved as a card in Chrome's native side panel, accumulating **every copy made during the current browser session**. Open the panel from the toolbar icon — it's **not limited to ruling pages**, so you can switch to Google Docs, Word Online, Obsidian Web, Notion, etc. and still see the same card list, clicking each card's "Copy" button to paste one by one. Ideal for brief-writing workflows that cite multiple passages.
-
-Each card shows the source tag (裁判書 / 判解函釋 / 內網判解函釋 / 內網裁判書), the clickable case number (opens the original ruling in a new tab), a timestamp, and the full text. Theme colors switch automatically by source. A **"Go to source"** button on each card jumps back to the exact paragraph on the original ruling page: if the original tab is still open, it switches and scrolls with a persistent yellow highlight; if closed or navigated elsewhere, a new tab is opened and auto-scrolls after load. Invisible anchors inserted at copy time allow direct DOM lookup, so positioning does not depend on URL matching. Each card also supports custom **#hashtags** (Obsidian-style colored pills that follow the source theme) and free-text **memos**, both saved and displayed directly on the card. A **keyword search bar** at the top filters cards by text, case number, memo, or #hashtag in real time; below it, an auto-generated **tag cloud** lets you filter by topic with one click. Exact duplicates are de-duplicated with a toast notification. Four-step font scaling (small / medium / large / extra-large) scales the tag, label, and body together. Export all cards as `.txt` or `.md` (including #hashtags and memos) — the `.md` format uses H2 headings for case numbers and blockquotes for judgment text, making it a clean drop-in for Obsidian vaults.
-
-**Privacy by design**: Clipboard history is stored only in `chrome.storage.session` (Chrome's native in-memory storage). It is wiped the moment you close the browser — **never written to disk, never uploaded, never synced across devices**.
-
-⚙️ **Options page**
-  • Toggle "append citation on copy" (default: on) — also exposed at the top of the clipboard side panel as an inline switch; both endpoints share the same setting and propagate changes instantly
-  • Toggle **"preserve original line breaks on copy"** (default: off); when on, copying a selection keeps the on-page line breaks instead of merging them into a continuous paragraph
-  • Toggle **"Enable Citations"** (default: on); when off, the Citations tab and inline citation highlight are skipped entirely
-  • Toggle **"Enable Highlighter"** (default: on); when off, the floating toolbar and the Highlighter tab are disabled, but previously saved marks remain and reappear when re-enabled
-  • **"Highlighter colors"** six-way checklist; unselected colors are omitted from the toolbar (selecting none falls back to the full six)
-  • Toggle **"Enable Download tab"** (default: on); when off the Download tab is hidden, but no other functionality is affected
-  • Per-site sidebar position (left / right) for FINT, FJUD, intranet FINT, and intranet FJUD — the Outline, Citations, Highlighter, and Download tabs all follow the same per-site placement
-  • "Expand depth" slider 1–6 (default 3): controls how deep the outline auto-expands
-  • All changes apply instantly to open tabs; user settings sync across devices via your Chrome account
-
-🎨 **Auto theme**
-Official Judicial Yuan palette — dark teal `#336666` for FINT (judicial interpretations), dark green `#336633` for FJUD (rulings), and navy blue `#006699` for the Judicial Yuan intranet. Clipboard card accent colors, buttons, and hover backgrounds also follow the source system's theme.
-
-🔖 **Supported pages**
-  - Taiwan Judicial Yuan Legal Search — `legal.judicial.gov.tw/FINT/*`
-  - Taiwan Judicial Yuan Judgments — `judgment.judicial.gov.tw/FJUD/*`
-  - Judicial Yuan Intranet Legal Interpretations — `legal.law.intraj/FINT/*` (intranet-only)
-  - Judicial Yuan Intranet Judgments — `judgment.law.intraj/FJUD/*` (intranet-only)
-
-Search result lists are ignored; the outline only appears on actual ruling pages. The intranet build shares the same codebase and needs no extra installation.
-
-🙈 **Privacy**
-No network requests. All data stays on your local browser. Clipboard cards live in `chrome.storage.session` (in-memory only, cleared on browser close); user settings sync via `chrome.storage.sync`; font-size preference lives in `chrome.storage.local`. None of it ever leaves your browser or reaches any third party. Source code fully open at:
-https://github.com/han0302-cyber/judicial-outline-extension
-
-**Who is it for**
-Lawyers, legal staff, law students, and researchers — anyone who needs to read long Taiwanese rulings quickly, cite judgment text, or batch-collect passages into Word / Google Docs / Obsidian.
 
 🆕 **v0.3.2 changes**
   • **"Copy full text" now comes in two versions**: the Download tab shows two side-by-side buttons — "Keep line breaks" (previous behavior) and "Remove line breaks" (same body text as the `.txt` download: soft wraps merged, paragraph structure kept per the outline and sentence-ending punctuation). Both prepend the header fields shown at the top of the ruling page (case label, judgment date, case category, related statutes); neither appends the `（…意旨參照）` citation suffix or adds a clipboard card
