@@ -52,6 +52,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 🆕 **v0.3.2 更新**
   • 一鍵複製全文新增「移除分行」版本，並附上判決頁首欄位
   • 修正部分頁面複製全文時誤附字號
+  • 移除「分頁」（tabs）權限，改以僅限司法院網域之存取權限，權限範圍更小
 
 ---
 
@@ -91,6 +92,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 🆕 **v0.3.2**
   • "Copy full text" now offers a "Remove line breaks" version and includes the ruling's header fields
   • Fixed the citation suffix being wrongly appended to "Copy full text" on some pages
+  • Dropped the `tabs` permission in favor of host access limited to Judicial Yuan sites
 
 ---
 
@@ -99,6 +101,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 ### 繁體中文
 
 🆕 **v0.3.2 更新**
+  • **移除 `tabs` 權限**：判決剪貼簿卡片之「前往」功能須讀取已開啟分頁之網址，以判斷原判決頁是否仍開啟。改以 `host_permissions` 宣告四個司法院網域（與 content script 比對範圍相同），僅能讀取司法院分頁之網址，其他分頁之網址一律不可見；安裝時之權限警告不增加，並少了「讀取瀏覽記錄」一項
   • **一鍵複製全文分為「保留分行」「移除分行」兩版**：「下載」耳標頂端改為並排兩枚按鈕；「保留分行」沿用前版行為，「移除分行」與 `.txt` 下載之正文相同（合併軟斷行，依判決架構與句末標點維持段落結構）；二者均於正文前附上裁判字號、裁判日期、裁判案由、相關法條等頁首欄位，不附「（XX意旨參照）」、不寫入判決剪貼簿卡片
   • **修正一鍵複製全文誤附字號**：判決正文位於 iframe 時，剪貼簿寫入退回備援路徑，其觸發之 copy 事件遭智慧複製攔截而誤附「（XX意旨參照）」並寫入卡片；本版於備援複製期間略過智慧複製，參照耳標「複製」按鈕亦不再於此情形重複附字號
 
@@ -220,6 +223,7 @@ https://github.com/han0302-cyber/judicial-outline-extension
 ### English
 
 🆕 **v0.3.2 changes**
+  • **Dropped the `tabs` permission**: the clipboard card's "Go to source" button needs the URLs of open tabs to find the original ruling page. Those URLs are now obtained via `host_permissions` for the four Judicial Yuan hosts (the same hosts the content script already matches), so only Judicial Yuan tab URLs are visible and all other tabs stay hidden. Install-time warnings do not grow, and the "Read your browsing history" warning goes away
   • **"Copy full text" now comes in two versions**: the Download tab shows two side-by-side buttons — "Keep line breaks" (previous behavior) and "Remove line breaks" (same body text as the `.txt` download: soft wraps merged, paragraph structure kept per the outline and sentence-ending punctuation). Both prepend the header fields shown at the top of the ruling page (case label, judgment date, case category, related statutes); neither appends the `（…意旨參照）` citation suffix or adds a clipboard card
   • **Fix: "Copy full text" wrongly appended the citation suffix**: when the ruling body sits in an iframe, the clipboard write falls back to `execCommand('copy')`, whose copy event was intercepted by Smart Copy — appending `（…意旨參照）` and adding a clipboard card. Smart Copy now stands aside during the fallback copy; the per-citation "Copy" button likewise no longer double-appends the suffix in this case
 
@@ -339,10 +343,10 @@ https://github.com/han0302-cyber/judicial-outline-extension
 ### Host permissions: `legal.judicial.gov.tw/FINT/*`, `judgment.judicial.gov.tw/FJUD/*`, `legal.law.intraj/FINT/*`, `judgment.law.intraj/FJUD/*`
 
 **Justification（繁中）**：
-擴充功能必須在司法院公開網域（FINT 法令判解系統、FJUD 裁判書系統）與司法院內部網路的裁判書及法令判解頁面上注入 DOM 元件（判決架構導覽側欄）以及攔截複製事件（移除換行、附上裁判字號、紀錄到判決剪貼簿側邊欄）。功能完全限定於這四個網域，不會存取其他網站。內網判解函釋網域（`legal.law.intraj`）限定於 `/FINT/*` 路徑；內網裁判書網域（`judgment.law.intraj`）限定於 `/FJUD/*` 路徑。行為與公開網域一致，供院內使用者安裝同一份擴充功能使用。
+擴充功能必須在司法院公開網域（FINT 法令判解系統、FJUD 裁判書系統）與司法院內部網路的裁判書及法令判解頁面上注入 DOM 元件（判決架構導覽側欄）以及攔截複製事件（移除換行、附上裁判字號、紀錄到判決剪貼簿側邊欄）。判決剪貼簿卡片之「前往」功能另須讀取已開啟分頁之網址，以判斷原判決頁是否仍開啟；本擴充功能未要求 `tabs` 權限，而以此四個網域之 host 權限取得網址，故僅能讀取司法院分頁之網址。功能完全限定於這四個網域，不會存取其他網站。內網判解函釋網域（`legal.law.intraj`）限定於 `/FINT/*` 路徑；內網裁判書網域（`judgment.law.intraj`）限定於 `/FJUD/*` 路徑。行為與公開網域一致，供院內使用者安裝同一份擴充功能使用。
 
 **Justification (English)**:
-The extension needs to inject DOM elements (the outline sidebar) and intercept the copy event (line-break stripping, citation suffix, and logging to the clipboard side panel) on ruling pages hosted at the Taiwan Judicial Yuan's public domains (FINT legal interpretations, FJUD rulings) and the Judicial Yuan's internal intranet. All functionality is strictly limited to these four hosts; no other websites are accessed. The intranet legal interpretations host (`legal.law.intraj`) is scoped to `/FINT/*`; the intranet judgment host (`judgment.law.intraj`) is scoped to `/FJUD/*`. Both behave identically to the public hosts and let Judicial Yuan staff install the same extension for internal use.
+The extension needs to inject DOM elements (the outline sidebar) and intercept the copy event (line-break stripping, citation suffix, and logging to the clipboard side panel) on ruling pages hosted at the Taiwan Judicial Yuan's public domains (FINT legal interpretations, FJUD rulings) and the Judicial Yuan's internal intranet. The clipboard card's "Go to source" button also needs the URLs of open tabs to find the original ruling page; instead of requesting the `tabs` permission, the extension relies on host access to these four hosts, so it can read only the URLs of Judicial Yuan tabs. All functionality is strictly limited to these four hosts; no other websites are accessed. The intranet legal interpretations host (`legal.law.intraj`) is scoped to `/FINT/*`; the intranet judgment host (`judgment.law.intraj`) is scoped to `/FJUD/*`. Both behave identically to the public hosts and let Judicial Yuan staff install the same extension for internal use.
 
 ### `storage` permission
 

@@ -10,7 +10,13 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "sidePanel", "tabs"],
+  "permissions": ["storage", "sidePanel"],
+  "host_permissions": [
+    "https://legal.judicial.gov.tw/FINT/*",
+    "https://judgment.judicial.gov.tw/FJUD/*",
+    "https://legal.law.intraj/FINT/*",
+    "https://judgment.law.intraj/FJUD/*"
+  ],
   "action": {
     "default_title": "判決剪貼簿"
   },
