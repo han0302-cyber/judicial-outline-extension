@@ -1638,20 +1638,37 @@
       dlHead.textContent = '下載判決全文'
       dlCard.appendChild(dlHead)
 
-      // 一鍵複製全文：直接將判決正文寫入系統剪貼簿，且
-      //   • 保留判決頁面內之「原始分行」（不執行軟斷行合併）；
-      //   • 一律不在尾端附上「（XX意旨參照）」字號尾綴；
-      //   • 不寫入判決剪貼簿卡片，純粹複製至 OS 剪貼簿。
-      const copyFullBtn = hostDoc.createElement('button')
-      copyFullBtn.type = 'button'
-      copyFullBtn.className = 'fint-download-btn fint-copyfull-btn'
-      copyFullBtn.textContent = '一鍵複製全文'
-      copyFullBtn.title =
-        '複製判決全文至剪貼簿，保留原始分行，且不附「（XX意旨參照）」'
-      copyFullBtn.addEventListener('click', () =>
-        copyJudgmentFullText(copyFullBtn),
+      // 一鍵複製全文：直接將判決正文寫入系統剪貼簿，分為兩種版本：
+      //   • 保留分行：維持判決頁面內之「原始分行」（不執行軟斷行合併）；
+      //   • 移除分行：與 .txt 下載之正文相同（合併軟斷行、依判決架構分段）。
+      // 二者均於正文前附上裁判字號等頁首欄位，一律不在尾端附上「（XX意旨
+      // 參照）」字號尾綴，亦不寫入判決剪貼簿卡片，純粹複製至 OS 剪貼簿。
+      const copyRow = hostDoc.createElement('div')
+      copyRow.className = 'fint-copyfull-row'
+
+      const copyRawBtn = hostDoc.createElement('button')
+      copyRawBtn.type = 'button'
+      copyRawBtn.className = 'fint-download-btn fint-copyfull-btn'
+      copyRawBtn.textContent = '複製全文\n（保留分行）'
+      copyRawBtn.title =
+        '複製判決全文（含裁判字號等欄位）至剪貼簿，保留原始分行，且不附「（XX意旨參照）」'
+      copyRawBtn.addEventListener('click', () =>
+        copyJudgmentFullText(copyRawBtn, 'raw'),
       )
-      dlCard.appendChild(copyFullBtn)
+
+      const copyMergedBtn = hostDoc.createElement('button')
+      copyMergedBtn.type = 'button'
+      copyMergedBtn.className = 'fint-download-btn fint-copyfull-btn'
+      copyMergedBtn.textContent = '複製全文\n（移除分行）'
+      copyMergedBtn.title =
+        '複製判決全文（含裁判字號等欄位）至剪貼簿，移除不必要之分行但保留判決架構（與 .txt 下載正文相同），且不附「（XX意旨參照）」'
+      copyMergedBtn.addEventListener('click', () =>
+        copyJudgmentFullText(copyMergedBtn, 'merged'),
+      )
+
+      copyRow.appendChild(copyRawBtn)
+      copyRow.appendChild(copyMergedBtn)
+      dlCard.appendChild(copyRow)
 
       // 「一併匯出螢光筆」勾選：僅作用於 .md 下載；勾選時將本判決所有
       // 螢光筆段落以 <mark style="background:..."> 包入，於 Obsidian
@@ -2383,29 +2400,43 @@
     }
   }
 
-  // 一鍵複製判決全文至系統剪貼簿。與 .txt／.md 下載不同之處：
-  //   • 保留判決頁面內之原始分行（extractFullTextRaw 不合併軟斷行）；
-  //   • 不附後設資料標頭，純粹複製判決正文；
+  // 一鍵複製判決全文至系統剪貼簿。mode 為 'raw' 或 'merged'：
+  //   • 'raw'：保留判決頁面內之原始分行（extractFullTextRaw 不合併軟斷行）；
+  //   • 'merged'：與 .txt 下載之正文相同（extractFullText 合併軟斷行，並
+  //     依判決架構標記與句末標點維持段落結構）。
+  // 二者均於正文前附上判決頁面頂端之欄位（裁判字號、裁判日期、裁判案由、
+  // 相關法條，缺者略過），以一空行與正文區隔。與 .txt／.md 下載不同之處：
+  //   • 不附來源連結、擷取時間與分隔線；
   //   • 一律不在尾端附上「（XX意旨參照）」（不經過 Cmd+C／參照複製路徑）；
   //   • 不寫入判決剪貼簿卡片。
-  function copyJudgmentFullText(btn) {
+  function copyJudgmentFullText(btn, mode) {
     const body = findBodyContainer()
     if (!body) {
       showToast('找不到判決正文，無法複製')
       return
     }
-    const text = extractFullTextRaw(body)
-    if (!text.trim()) {
+    const merged = mode === 'merged'
+    const bodyText = merged
+      ? extractFullText(body, cachedOutlineItems || [])
+      : extractFullTextRaw(body)
+    if (!bodyText.trim()) {
       showToast('正文內容為空，無法複製')
       return
     }
+    const meta = extractMetadata()
+    const metaLines = META_KEYS.filter((k) => meta[k]).map(
+      (k) => `${k}：${meta[k]}`,
+    )
+    const text = metaLines.length
+      ? metaLines.join('\n') + '\n\n' + bodyText
+      : bodyText
     Promise.resolve(writeTextToClipboard(text)).then((ok) => {
       // writeTextToClipboard 成功時 resolve 為 undefined；僅退回 false 時為失敗。
       if (ok === false) {
         showToast('複製失敗，請重試')
         return
       }
-      showToast('已複製判決全文（保留原始分行）')
+      showToast(merged ? '已複製判決全文（移除分行）' : '已複製判決全文（保留原始分行）')
       if (btn) {
         const orig = btn.textContent
         btn.textContent = '已複製 ✓'
@@ -2635,6 +2666,8 @@
   }
 
   function captureSelectionToClipboard(e, opts) {
+    // 擴充功能自身之備援複製（fallbackCopy）所觸發者，原樣放行。
+    if (suppressCopyCapture) return
     const saveToHistory = !!(opts && opts.saveToHistory)
     const sel = window.getSelection()
     if (!sel || sel.isCollapsed) return
@@ -2723,6 +2756,13 @@
     return Promise.resolve(fallbackCopy(text))
   }
 
+  // execCommand('copy') 會同步觸發 document 之 copy 事件；若不略過，
+  // captureSelectionToClipboard 將攔截此次複製，於尾端附上「（XX意旨參照）」
+  // 並推入判決剪貼簿卡片——致「一鍵複製全文」誤附字號、參照複製重複附字號。
+  // 判決正文位於 iframe 而按鈕位於外層頁面時，iframe 未取得焦點，
+  // navigator.clipboard.writeText 遭拒而退回本路徑，故此情形實際會發生。
+  let suppressCopyCapture = false
+
   function fallbackCopy(text) {
     try {
       const ta = document.createElement('textarea')
@@ -2733,7 +2773,13 @@
       ta.style.left = '-9999px'
       document.body.appendChild(ta)
       ta.select()
-      const ok = document.execCommand('copy')
+      suppressCopyCapture = true
+      let ok
+      try {
+        ok = document.execCommand('copy')
+      } finally {
+        suppressCopyCapture = false
+      }
       document.body.removeChild(ta)
       return ok
     } catch (_) {

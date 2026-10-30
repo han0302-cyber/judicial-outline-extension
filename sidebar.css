@@ -172,14 +172,23 @@
   color: #ffffff;
 }
 
-/* 一鍵複製全文：填色強調按鈕，置於卡片頂端，與下方「匯出螢光筆」選項
- * 以下緣間距區隔，視覺上突顯為主要動作。
- * 須置於 .fint-download-btn 規則之後：該規則之 `all: unset` 會重置 margin，
- * 等特異度下以後出現者勝出，故本規則必須在其後才能套用 margin-bottom。 */
-#fint-outline-sidebar .fint-copyfull-btn {
-  width: 100%;
-  box-sizing: border-box;
+/* 一鍵複製全文：「保留分行」「移除分行」兩枚填色強調按鈕並排於卡片
+ * 頂端，與下方「匯出螢光筆」選項以下緣間距區隔，視覺上突顯為主要動作。
+ * 間距置於外層 .fint-copyfull-row，不受 .fint-download-btn 之 `all: unset`
+ * 影響；按鈕本身則須置於該規則之後，等特異度下以後出現者勝出。
+ * 按鈕文字以 `\n` 分為兩行（「複製全文」／「（○○分行）」），故用 pre-line。 */
+#fint-outline-sidebar .fint-copyfull-row {
+  display: flex;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+#fint-outline-sidebar .fint-copyfull-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 6px;
+  white-space: pre-line;
   background: var(--fint-primary);
   border-color: var(--fint-primary);
   color: #ffffff;
